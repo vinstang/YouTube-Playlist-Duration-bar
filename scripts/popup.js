@@ -3,7 +3,7 @@ let permissionNeeded = {
 };
 
 document.addEventListener('DOMContentLoaded', function () {
-    var grantButton = document.getElementById('grantButton');
+    let grantButton = document.getElementById('grantButton');
 
     grantButton.addEventListener('click', function () {
         chrome.permissions.request(permissionNeeded);
