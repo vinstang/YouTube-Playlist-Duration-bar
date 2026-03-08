@@ -36,6 +36,7 @@
                 "*://www.youtube.com/*"
             ],
             "resources": [
+                "scripts/utils.js",
                 "scripts/duration-playing.js",
                 "scripts/duration-playlist.js"
             ]

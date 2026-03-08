@@ -28,6 +28,7 @@ export default defineConfig({
                 // These source files are already valid ES modules, so a direct
                 // copy preserves the export statements that import() requires.
                 // When migrated to src/*.ts, Vite will compile them correctly.
+                { src: 'scripts/utils.js', dest: 'scripts' },
                 { src: 'scripts/duration-playing.js', dest: 'scripts' },
                 { src: 'scripts/duration-playlist.js', dest: 'scripts' },
             ],
