@@ -20,16 +20,19 @@
 
 .duration-content {
     margin: 5px 5px 5px 5px;
-    font-size: 1.7em;
+    font-size: 1.4em;
+    font-weight: 500;
+    font-family: Roboto, Arial, sans-serif;
     display: block;
     text-align: center;
-    font-weight: bold;
     z-index: 2;
 }
 
 .played-content {
     margin: 0px 5px 5px 5px;
-    font-size: 1.5em;
+    font-size: 1.2em;
+    font-weight: 400;
+    font-family: Roboto, Arial, sans-serif;
     z-index: 2;
 }
 
