@@ -17,6 +17,7 @@ extension with a TypeScript build pipeline, tests, CI/CD, and structured release
 - `scripts/background.js` — service worker; re-injects scripts on install
 - `scripts/duration-playing.js` — ES module; handles the "now playing" playlist view
 - `scripts/duration-playlist.js` — ES module; handles the standalone playlist page view
+- `scripts/utils.js` — shared utility module; exports `timeListToSeconds`, `secondsToTs`, `calculateTotalTime`; must be listed in `web_accessible_resources`
 - `html/popup.html` + `scripts/popup.js` — browser action popup UI
 
 ---
@@ -31,14 +32,14 @@ src/                  # FUTURE home of TypeScript source (currently empty skelet
   scripts/            #   → TS equivalents of scripts/
   css/                #   → CSS/SCSS source
   html/               #   → HTML templates
-dist/                 # Build output — never commit (currently empty)
-tests/                # Test files — Vitest (currently empty, to be populated)
+dist/                 # Build output — never commit (loaded as unpacked extension in Playwright Chrome)
+tests/                # Test files — Vitest (tests/utils.test.ts — 25 tests, all passing)
 icons/                # Extension icons (PNG + GIMP .xcf originals)
 manifest.json         # Active manifest (Chrome, MV3)
 manifest-chrome.json  # Chrome-specific copy
 manifest-firefox.json # Firefox variant (no "scripting" permission)
 Release/              # Zip archives of prior releases
-.github/workflows/    # CI/CD pipelines (currently empty, to be populated)
+.github/workflows/    # CI/CD pipelines (ci.yml — lint/type-check/test on PRs; build.yml — artifacts on push to main)
 ```
 
 **IMPORTANT:** Until the build pipeline is established, `scripts/`, `css/`, and
@@ -51,9 +52,13 @@ goes into `src/`.
 
 ## Build / Lint / Test Commands
 
-> `package.json` does not yet exist. Vite, Vitest, and ESLint are installed in
-> `node_modules` but are not yet configured. The commands below reflect the
-> intended setup once bootstrapped.
+> **Node path:** Node is installed via nvm and is NOT in the default shell PATH.
+> Always prefix `npm`/`node` commands with:
+> `export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" &&`
+> For example: `export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" && npm run test`
+
+`package.json`, `vite.config.ts`, `vitest.config.ts`, and `eslint.config.js` are all
+configured and working. All commands below are functional.
 
 | Command                      | Purpose                                        |
 |------------------------------|------------------------------------------------|
@@ -68,14 +73,20 @@ goes into `src/`.
 | `npm run test -- --watch`    | Run tests in watch mode                        |
 | `npm run type-check`         | Run `tsc --noEmit` without building            |
 
-**Loading the extension locally (current no-build workflow):**
-1. Open `chrome://extensions`
-2. Enable "Developer mode"
-3. Click "Load unpacked" → select the repository root (where `manifest.json` lives)
-
-**Loading after build pipeline is set up:**
+**Loading the extension locally:**
 1. Run `npm run build:chrome`
-2. Load unpacked from `dist/`
+2. Open `chrome://extensions`, enable "Developer mode"
+3. Click "Load unpacked" → select `dist/`
+
+> The Playwright test environment loads the extension from `dist/` automatically.
+> Run `npm run build:chrome` before launching Playwright tests to pick up changes.
+
+**Build system note — ES modules and viteStaticCopy:**
+`vite-plugin-web-extension` hardcodes IIFE output format for all bundled scripts,
+which strips `export` statements. `duration-playing.js` and `duration-playlist.js`
+are ES modules that use `export` (required for dynamic `import()` from content
+scripts). They must be copied as-is via `viteStaticCopy` in `vite.config.ts` rather
+than bundled. Do not move these files into the standard Vite entry points.
 
 ---
 
@@ -155,6 +166,10 @@ Follow these rules when writing new code or modifying existing code:
 - Use `MutationObserver` to react to YouTube's SPA navigation — no `load` events
 - **Disconnect observers** when no longer needed to prevent memory leaks
 - Use `chrome.runtime.getURL()` for all resource paths from content scripts
+- **`web_accessible_resources` requirement:** Any JS module imported by a content
+  script (e.g. `utils.js` imported by `duration-playing.js`) must be listed under
+  `web_accessible_resources` in all manifests. The browser resolves dynamic imports
+  to `chrome-extension://<id>/scripts/<file>` and will block them otherwise.
 - Theme detection pattern (preserve this):
   ```ts
   const checkTheme = (): 'dark' | 'light' =>
@@ -211,15 +226,15 @@ Follow these rules when writing new code or modifying existing code:
 
 Work in this order when contributing to the modernisation effort:
 
-1. **Bootstrap tooling** — add `package.json`, configure Vite (bundler), ESLint
-   (linter), Vitest (test runner), and `tsconfig.json` with `strict: true`
-2. **Fix `.gitignore`** — exclude `node_modules/`, `dist/`, `*.zip`
+1. ~~**Bootstrap tooling** — add `package.json`, configure Vite (bundler), ESLint
+   (linter), Vitest (test runner), and `tsconfig.json` with `strict: true`~~ **DONE**
+2. ~~**Fix `.gitignore`** — exclude `node_modules/`, `dist/`, `*.zip`~~ **DONE**
 3. **Migrate source to `src/`** — convert `scripts/*.js` → `src/scripts/*.ts`,
    move `css/` and `html/` into `src/`
-4. **Write unit tests** — start with pure functions: `timeListToSeconds`,
-   `secondsToTs`, `calculateTotalTime`; target `tests/` directory with Vitest
-5. **CI pipeline** — add GitHub Actions: lint + type-check + test on every PR;
-   build on push to `main`
+4. ~~**Write unit tests** — start with pure functions: `timeListToSeconds`,
+   `secondsToTs`, `calculateTotalTime`; target `tests/` directory with Vitest~~ **DONE** (`tests/utils.test.ts`, 25 tests passing)
+5. ~~**CI pipeline** — add GitHub Actions: lint + type-check + test on every PR;
+   build on push to `main`~~ **DONE** (`.github/workflows/ci.yml` + `build.yml`)
 6. **Release automation** — zip packaging, `CHANGELOG.md`, GitHub Releases triggered
    by version tags; separate Chrome and Firefox artifacts
 7. **Cross-browser parity** — align `manifest-firefox.json` version with Chrome
