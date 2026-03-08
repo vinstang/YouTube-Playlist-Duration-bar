@@ -42,6 +42,7 @@ const createUiELement = () => {
     divTotalBlock = document.createElement("div");
     divTotalBlock.id = "total-block";
     divTotalBlock.style.display = "flex";
+    divTotalBlock.style.justifyContent = "center";
     // divTotalBlock.className = "current-block";
 
     // <Span> Total: 
@@ -85,6 +86,7 @@ const appendUiElement = () => {
 
     divDurationBlock.appendChild(divDurationProgress);
     divDurationBlock.appendChild(divTotalBlock);
+    divTotalBlock.appendChild(durationTotal);
     divDurationBlock.appendChild(divCurrentBlock);
 
     divCurrentBlock.appendChild(durationWatched);
