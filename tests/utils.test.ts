@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { timeListToSeconds, secondsToTs, calculateTotalTime } from '../scripts/utils.js';
+import { timeListToSeconds, secondsToTs, calculateTotalTime } from '../src/scripts/utils.js';
 
 // ─── timeListToSeconds ────────────────────────────────────────────────────────
 

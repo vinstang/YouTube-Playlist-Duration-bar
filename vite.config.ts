@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, transformWithEsbuild } from 'vite';
 import webExtension from 'vite-plugin-web-extension';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
@@ -22,15 +22,50 @@ export default defineConfig({
         viteStaticCopy({
             targets: [
                 { src: 'icons/*', dest: 'icons' },
-                // Copy these ES modules as-is rather than bundling them.
-                // The plugin's script bundler outputs IIFE format which breaks
-                // dynamic import() in content.js — named exports disappear.
-                // These source files are already valid ES modules, so a direct
-                // copy preserves the export statements that import() requires.
-                // When migrated to src/*.ts, Vite will compile them correctly.
-                { src: 'scripts/utils.js', dest: 'scripts' },
-                { src: 'scripts/duration-playing.js', dest: 'scripts' },
-                { src: 'scripts/duration-playlist.js', dest: 'scripts' },
+                // Compile these ES modules from TypeScript source and copy to dist/scripts/.
+                // They must stay as ES modules (not IIFE) so dynamic import() in content.ts
+                // can import named exports at runtime. vite-plugin-web-extension bundles WAR
+                // script entries as IIFE; this static copy overwrites that output with the
+                // correct ESM-formatted JS compiled directly from the TypeScript source.
+                {
+                    src: 'src/scripts/utils.ts',
+                    dest: 'scripts',
+                    rename: 'utils.js',
+                    transform: async (content: string, filename: string) => {
+                        const result = await transformWithEsbuild(content, filename, {
+                            loader: 'ts',
+                            format: 'esm',
+                            target: 'es2020',
+                        });
+                        return result.code;
+                    },
+                },
+                {
+                    src: 'src/scripts/duration-playing.ts',
+                    dest: 'scripts',
+                    rename: 'duration-playing.js',
+                    transform: async (content: string, filename: string) => {
+                        const result = await transformWithEsbuild(content, filename, {
+                            loader: 'ts',
+                            format: 'esm',
+                            target: 'es2020',
+                        });
+                        return result.code;
+                    },
+                },
+                {
+                    src: 'src/scripts/duration-playlist.ts',
+                    dest: 'scripts',
+                    rename: 'duration-playlist.js',
+                    transform: async (content: string, filename: string) => {
+                        const result = await transformWithEsbuild(content, filename, {
+                            loader: 'ts',
+                            format: 'esm',
+                            target: 'es2020',
+                        });
+                        return result.code;
+                    },
+                },
             ],
         }),
     ],
