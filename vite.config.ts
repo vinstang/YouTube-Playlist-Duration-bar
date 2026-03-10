@@ -17,6 +17,25 @@ export default defineConfig({
             // Disable auto-launching a browser in watch mode.
             // Load dist/ manually via chrome://extensions "Load unpacked".
             disableAutoLaunch: true,
+            // Inject web_accessible_resources into the output manifest here rather
+            // than listing them in the source manifests. The plugin treats WAR script
+            // paths as Rollup inputs and tries to bundle them as IIFE, breaking the
+            // named exports that dynamic import() requires. By omitting WAR from the
+            // source manifests, the plugin never processes those files; viteStaticCopy
+            // below compiles them as proper ESM and places them at dist/scripts/*.js.
+            transformManifest: (m) => ({
+                ...m,
+                web_accessible_resources: [
+                    {
+                        matches: ['*://www.youtube.com/*'],
+                        resources: [
+                            'scripts/utils.js',
+                            'scripts/duration-playing.js',
+                            'scripts/duration-playlist.js',
+                        ],
+                    },
+                ],
+            }),
         }),
         // Copy static assets that the plugin doesn't handle automatically.
         viteStaticCopy({
