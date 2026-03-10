@@ -39,18 +39,49 @@ const createUiElement = (currentTheme: Theme): PlaylistElements => {
     return { divDurationBlock, durationTotal, videoCounted };
 };
 
-const appendUiElement = (els: PlaylistElements): void => {
-    const headerContents = document.querySelector<HTMLElement>(
-        '#page-manager [page-subtype="playlist"] > ytd-playlist-header-renderer > div > ' +
-        'div.immersive-header-content.style-scope.ytd-playlist-header-renderer > ' +
-        'div.thumbnail-and-metadata-wrapper.style-scope.ytd-playlist-header-renderer > ' +
-        'div > div.metadata-action-bar.style-scope.ytd-playlist-header-renderer'
-    );
-    if (!headerContents) return;
+// YouTube renders duplicate hidden copies of some elements alongside the visible
+// ones (e.g. one inside ytd-tabbed-page-header that is always 0×0, and another
+// inside ytd-browse that is the real rendered element). querySelector returns the
+// first match which is the hidden copy. Use querySelectorAll and return the first
+// element that has a non-zero bounding rect instead.
+const findRendered = (selector: string): HTMLElement | null => {
+    for (const el of document.querySelectorAll<HTMLElement>(selector)) {
+        const r = el.getBoundingClientRect();
+        if (r.width > 0 || r.height > 0) return el;
+    }
+    return null;
+};
 
-    headerContents.insertAdjacentElement('afterend', els.divDurationBlock);
-    els.divDurationBlock.appendChild(els.durationTotal);
-    els.divDurationBlock.appendChild(els.videoCounted);
+const appendUiElement = (els: PlaylistElements): void => {
+    // YouTube has two responsive modes for the playlist page that share the same DOM:
+    //   Wide viewport  → side panel (yt-page-header-view-model floats as left column)
+    //   Narrow viewport → top header (yt-page-header-view-model spans full width)
+    // In both modes yt-description-preview-view-model is the last visible item —
+    // inject after it. findRendered() skips the always-hidden duplicate copy in
+    // ytd-tabbed-page-header and returns the actually rendered element.
+    //
+    // Fallback for Watch Later / legacy playlists that still use the old
+    // immersive-header layout with .metadata-action-bar.
+    const candidates: Array<{ selector: string; position: InsertPosition }> = [
+        {
+            selector: 'yt-description-preview-view-model',
+            position: 'afterend',
+        },
+        {
+            selector: '#page-manager [page-subtype="playlist"] .metadata-action-bar',
+            position: 'afterend',
+        },
+    ];
+
+    for (const { selector, position } of candidates) {
+        const anchor = findRendered(selector);
+        if (anchor) {
+            anchor.insertAdjacentElement(position, els.divDurationBlock);
+            els.divDurationBlock.appendChild(els.durationTotal);
+            els.divDurationBlock.appendChild(els.videoCounted);
+            return;
+        }
+    }
 };
 
 const getVideoTimeList = (): VideoTimeList => {

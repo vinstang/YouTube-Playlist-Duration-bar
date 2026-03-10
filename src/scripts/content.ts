@@ -61,7 +61,11 @@ const startObserver = (): void => {
                 playlistObserver.observe(playlistContents, { childList: true, subtree: true });
                 playlistObserverStarted = true;
                 if (DEBUG) console.log('START :: Playlist observer started');
+                // Call immediately and retry — header elements (yt-description-preview-view-model
+                // etc.) may not be laid out yet when the video list first appears.
                 updateDurationPlaylist();
+                setTimeout(updateDurationPlaylist, 1000);
+                setTimeout(updateDurationPlaylist, 3000);
             }
         }
 
