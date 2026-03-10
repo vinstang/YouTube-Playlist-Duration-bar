@@ -14,7 +14,7 @@ export const updateDurationPlaylist = () => {
 
     let totalTs = secondsToTs(totalSeconds);
 
-    if (document.getElementById('duration-block-playlist') === null) {
+    if (document.getElementsByClassName('duration-block-playlist').length === 0) {
         createUiELement();
         appendUiElement();
     }
@@ -26,30 +26,30 @@ const createUiELement = () => {
     // <div Outer duration block
     divDurationBlock = document.createElement("div");
     divDurationBlock.setAttribute(theme, "");
-    divDurationBlock.id = "duration-block-playlist";
-    divDurationBlock.className = "duration-block";
+    divDurationBlock.className = "duration-block duration-block-playlist";
 
     // <Span> Total:
     durationTotal = document.createElement('span');
     durationTotal.setAttribute(theme, "");
-    durationTotal.id = 'duration-total-playlist';
-    durationTotal.className = 'duration-content';
+    durationTotal.className = 'duration-content duration-total-playlist';
     durationTotal.title = "Only count video shown in the playlist panel.";
 
     // <Span> Video counted
     videoCounted = document.createElement('span');
     videoCounted.setAttribute(theme, "");
-    videoCounted.id = 'video-counted';
-    videoCounted.className = 'duration-content';
+    videoCounted.className = 'duration-content video-counted';
     videoCounted.title = "If this number not matching the total number of videos in this playlist,\nscroll down to load more video, or some videos are hidden.";
 }
 
 const appendUiElement = () => {
-    const headerContents = document.querySelector('#page-manager [page-subtype="playlist"] > ytd-playlist-header-renderer > div > div.immersive-header-content.style-scope.ytd-playlist-header-renderer > div.thumbnail-and-metadata-wrapper.style-scope.ytd-playlist-header-renderer > div > div.metadata-action-bar.style-scope.ytd-playlist-header-renderer')
+    const headerContents = document.querySelector('#page-manager [page-subtype="playlist"] .page-header-sidebar .yt-page-header-view-model__page-header-headline');
     headerContents.insertAdjacentElement('afterend', divDurationBlock);
 
     divDurationBlock.appendChild(durationTotal);
     divDurationBlock.appendChild(videoCounted);
+
+    const headerContentsMobile = document.querySelector('#page-manager [page-subtype="playlist"] #header .yt-page-header-view-model__page-header-headline');
+    headerContentsMobile.insertAdjacentElement('afterend', divDurationBlock.cloneNode(true));
 }
 
 const checkTheme = () => {
@@ -122,6 +122,13 @@ const secondsToTs = (seconds) => {
 }
 
 const updateUI = (totalTs, count) => {
-    durationTotal.innerText = "Total duration: " + totalTs;
-    videoCounted.innerText = "Videos counted: " + count;
+    const durationTotals = document.getElementsByClassName("duration-total-playlist");
+    for (const durationTotal of durationTotals) {
+        durationTotal.innerText = "Total duration: " + totalTs;
+    }
+
+    const videoCounteds = document.getElementsByClassName("video-counted");
+    for (const videoCounted of videoCounteds) {
+        videoCounted.innerText = "Videos counted: " + count;
+    }
 }

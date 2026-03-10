@@ -1,13 +1,13 @@
-#duration-block-playlist {
+.duration-block-playlist {
     margin: 10px 0px 5px 0px;
     background-color: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-#duration-total-playlist {
+.duration-total-playlist {
     color: rgba(255, 255, 255, 1);
 }
 
-#video-counted {
+.video-counted {
     color: rgba(255, 255, 255, 1);
 }
