@@ -14,6 +14,7 @@ interface VideoTimeList {
 }
 
 let theme: Theme | undefined;
+let resizeObserver: ResizeObserver | undefined;
 
 const checkTheme = (): Theme =>
     document.querySelector('[dark]') ? 'dark' : 'light';
@@ -33,7 +34,7 @@ const createUiElement = (currentTheme: Theme): PlaylistElements => {
     const videoCounted = document.createElement('span');
     videoCounted.setAttribute(currentTheme, '');
     videoCounted.id = 'video-counted';
-    videoCounted.className = 'duration-content';
+    videoCounted.className = 'played-content';
     videoCounted.title = 'If this number not matching the total number of videos in this playlist,\nscroll down to load more video, or some videos are hidden.';
 
     return { divDurationBlock, durationTotal, videoCounted };
@@ -53,18 +54,28 @@ const findRendered = (selector: string): HTMLElement | null => {
 };
 
 const appendUiElement = (els: PlaylistElements): void => {
-    // YouTube has two responsive modes for the playlist page that share the same DOM:
-    //   Wide viewport  → side panel (yt-page-header-view-model floats as left column)
-    //   Narrow viewport → top header (yt-page-header-view-model spans full width)
-    // In both modes yt-description-preview-view-model is the last visible item —
-    // inject after it. findRendered() skips the always-hidden duplicate copy in
-    // ytd-tabbed-page-header and returns the actually rendered element.
+    // YouTube uses different rendered layouts depending on login state and viewport:
     //
-    // Fallback for Watch Later / legacy playlists that still use the old
-    // immersive-header layout with .metadata-action-bar.
+    //   A. yt-page-header-view-model (logged-out or new layout):
+    //      - Wide  → floats as left side panel
+    //      - Narrow → spans full width as top header
+    //      Inject after yt-description-preview-view-model (last item before actions).
+    //
+    //   B. ytd-playlist-sidebar-primary-info-renderer (logged-in, wide view):
+    //      The sidebar with thumbnail, title, stats and play buttons.
+    //      Inject after #play-buttons (below the action row).
+    //
+    //   C. .metadata-action-bar (Watch Later / legacy immersive header layout).
+    //
+    // findRendered() skips always-hidden duplicate copies (0×0 bounding rect)
+    // and returns the first element that is actually painted on screen.
     const candidates: Array<{ selector: string; position: InsertPosition }> = [
         {
             selector: 'yt-description-preview-view-model',
+            position: 'afterend',
+        },
+        {
+            selector: 'ytd-playlist-sidebar-primary-info-renderer #play-buttons',
             position: 'afterend',
         },
         {
@@ -108,8 +119,27 @@ const updateUI = (totalTs: string, count: number): void => {
     const durationTotal = document.getElementById('duration-total-playlist');
     const videoCounted = document.getElementById('video-counted');
 
-    if (durationTotal) durationTotal.textContent = 'Total duration: ' + totalTs;
+    if (durationTotal) durationTotal.textContent = 'Total: ' + totalTs;
     if (videoCounted) videoCounted.textContent = 'Videos counted: ' + count;
+};
+
+// Watch for layout switches (wide side-panel ↔ narrow top-header).
+// YouTube keeps both layouts in the DOM simultaneously and toggles visibility
+// via CSS as the viewport resizes. When the block's bounding rect collapses to
+// 0×0 the layout it was injected into has been hidden — remove the block so
+// updateDurationPlaylist re-injects it into the now-active layout.
+const startResizeWatcher = (): void => {
+    if (resizeObserver) return;
+    resizeObserver = new ResizeObserver(() => {
+        const block = document.getElementById('duration-block-playlist');
+        if (!block) return;
+        const r = block.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) {
+            block.remove();
+            updateDurationPlaylist();
+        }
+    });
+    resizeObserver.observe(document.documentElement);
 };
 
 export const updateDurationPlaylist = (): void => {
@@ -124,6 +154,7 @@ export const updateDurationPlaylist = (): void => {
     if (document.getElementById('duration-block-playlist') === null) {
         const els = createUiElement(theme);
         appendUiElement(els);
+        startResizeWatcher();
     }
 
     updateUI(totalTs, count);
