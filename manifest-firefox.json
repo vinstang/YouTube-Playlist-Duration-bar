@@ -3,6 +3,12 @@
     "version": "0.6.5",
     "description": "A progress bar to show playlist progress and duration",
     "manifest_version": 3,
+    "background": {
+        "service_worker": "src/scripts/background.ts"
+    },
+    "permissions": [
+        "scripting"
+    ],
     "host_permissions": [
         "*://www.youtube.com/*"
     ],
