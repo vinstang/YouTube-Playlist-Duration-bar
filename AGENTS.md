@@ -1,0 +1,244 @@
+# AGENTS.md — YouTube Playlist Duration bar
+
+This file is for agentic coding agents operating in this repository. It captures
+project context, commands, and code style guidelines needed to work effectively.
+
+---
+
+## Rules for generative AI
+
+1. **Do not** commit and push without human approval. Always ask.
+
+---
+
+## Project Overview
+
+A Chrome/Firefox browser extension (Manifest V3) that injects a progress bar and
+duration stats into YouTube playlist pages. Published on the Chrome Web Store and
+Firefox Add-ons at v0.6.5. The project is being revamped into a proper open-source
+extension with a TypeScript build pipeline, tests, CI/CD, and structured releases.
+
+**Extension entry points:**
+- `src/scripts/content.ts` — injected into every YouTube page; sets up MutationObservers
+- `src/scripts/background.ts` — service worker; re-injects scripts on install
+- `src/scripts/duration-playing.ts` — ES module; handles the "now playing" playlist view
+- `src/scripts/duration-playlist.ts` — ES module; handles the standalone playlist page view
+- `src/scripts/utils.ts` — shared utility module; exports `timeListToSeconds`, `secondsToTs`, `calculateTotalTime`; must be listed in `web_accessible_resources`
+- `src/html/popup.html` + `src/scripts/popup.ts` — browser action popup UI
+
+---
+
+## Repository Structure
+
+```
+src/                  # TypeScript source
+  scripts/            #   → content.ts, background.ts, duration-playing.ts, duration-playlist.ts, utils.ts, popup.ts
+  css/                #   → common.css, duration-playing.css, duration-playlist.css, popup.css
+  html/               #   → popup.html
+dist/                 # Build output — never commit (loaded as unpacked extension in Playwright Chrome)
+tests/                # Test files — Vitest (tests/utils.test.ts — 25 tests, all passing)
+icons/                # Extension icons (PNG + GIMP .xcf originals)
+manifest.json         # Single source manifest; browser differences handled via transformManifest in vite.config.ts
+vite.config.ts        # Build config; injects WAR entries + Firefox-specific fields via transformManifest
+.github/workflows/    # CI/CD pipelines (ci.yml — lint/type-check/test on PRs; build.yml — manual artifact build; release.yml — tag-triggered release)
+```
+
+---
+
+## Build / Lint / Test Commands
+
+> **Node path:** Node is installed via nvm and is NOT in the default shell PATH.
+> Always prefix `npm`/`node` commands with:
+> `export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" &&`
+> For example: `export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" && npm run test`
+
+`package.json`, `vite.config.ts`, `vitest.config.ts`, and `eslint.config.js` are all
+configured and working. All commands below are functional.
+
+| Command                      | Purpose                                        |
+|------------------------------|------------------------------------------------|
+| `npm run dev`                | Build in watch mode for local development      |
+| `npm run build`              | Production build to `dist/`                    |
+| `npm run build:chrome`       | Chrome-specific production build               |
+| `npm run build:firefox`      | Firefox-specific production build              |
+| `npm run lint`               | Run ESLint across `src/`                       |
+| `npm run lint:fix`           | Auto-fix ESLint violations                     |
+| `npm run test`               | Run all tests via Vitest                       |
+| `npm run test -- <file>`     | Run a single test file                         |
+| `npm run test -- --watch`    | Run tests in watch mode                        |
+| `npm run type-check`         | Run `tsc --noEmit` without building            |
+
+**Loading the extension locally:**
+1. Run `npm run build:chrome`
+2. Open `chrome://extensions`, enable "Developer mode"
+3. Click "Load unpacked" → select `dist/`
+
+> The Playwright test environment loads the extension from `dist/` automatically.
+> Run `npm run build:chrome` before launching Playwright tests to pick up changes.
+
+**Build system note — ES modules and viteStaticCopy:**
+`vite-plugin-web-extension` hardcodes IIFE output format for all bundled scripts,
+which strips `export` statements. `duration-playing.js` and `duration-playlist.js`
+are ES modules that use `export` (required for dynamic `import()` from content
+scripts). They must be copied as-is via `viteStaticCopy` in `vite.config.ts` rather
+than bundled. Do not move these files into the standard Vite entry points.
+
+---
+
+## Language: TypeScript
+
+The project is fully TypeScript. Follow these rules:
+
+- **All code goes in `src/` as `.ts` files** — do not add `.js` files to `src/`
+- Use **`strict: true`** in `tsconfig.json` (no implicit `any`, strict null checks)
+- Prefer explicit return types on exported functions
+- Use `interface` for object shapes (DOM element groups, return value types)
+- Use `type` for unions, aliases, and utility types
+- Avoid `any`; use `unknown` and narrow the type instead
+- Use `as` type assertions only when the DOM guarantees the type (e.g.,
+  `document.getElementById('x') as HTMLDivElement`)
+
+---
+
+## Code Style
+
+### Variables and Functions
+- Use `const` for all function declarations: `const myFunc = () => { ... }`
+- Use `let` for mutable variables; **never use `var`**
+- Use arrow functions for all function expressions
+- Use destructuring for multi-value returns: `return { watchedList, remainingList }`
+
+### Formatting
+- **4-space indentation** (no tabs)
+- Single quotes for strings; double quotes only inside JSX/HTML attribute strings
+- Ternary operators acceptable for short single-line conditionals
+- Opening braces on the same line as the statement
+- One blank line between top-level declarations
+
+### Naming Conventions
+- **Files:** `kebab-case` — `duration-playing.ts`, `duration-playlist.css`
+- **Functions / variables:** `camelCase` — `updateDurationPlaying`, `totalSeconds`
+- **Interfaces:** `PascalCase` prefixed with `I` only if needed for disambiguation
+  — prefer plain `PascalCase`: `VideoTimeResult`, `DurationState`
+- **CSS classes:** `kebab-case` — `.duration-block`, `.played-content`
+- **CSS IDs:** `kebab-case` — `#duration-block-playing`, `#progress-bar-playing`
+- **Boolean flags:** prefix with verb — `playingObserverStarted`, `isWatched`
+- Avoid abbreviations except established ones: `ts` (timestamp), `el` (element)
+
+### Known Typo — Fixed
+- `createUiELement` (capital L) was renamed to `createUiElement` in both
+  `duration-playing.ts` and `duration-playlist.ts` during the TS migration.
+
+### Imports
+- Use static `import` at the top of `.ts` files
+- In content scripts, dynamic `import()` via `chrome.runtime.getURL()` is required
+  by MV3 sandbox rules — this pattern must be preserved in the compiled output
+- Group imports: browser APIs → third-party → internal modules (blank line between groups)
+
+---
+
+## Error Handling
+
+The current codebase has **no error handling** — all DOM queries assume elements exist.
+Follow these rules when writing new code or modifying existing code:
+
+- Guard every DOM query result before accessing its properties:
+  ```ts
+  const el = document.querySelector<HTMLElement>('#some-selector');
+  if (!el) return;
+  ```
+- Never use `!` non-null assertion (`el!.innerText`) — use a null guard instead
+- Use early returns to reduce nesting rather than wrapping in `try/catch`
+- Reserve `try/catch` for async operations (e.g., `chrome.scripting.executeScript`)
+  and re-log or silently swallow only extension lifecycle errors that are expected
+
+---
+
+## DOM and Browser Extension Patterns
+
+- Use `MutationObserver` to react to YouTube's SPA navigation — no `load` events
+- **Disconnect observers** when no longer needed to prevent memory leaks
+- Use `chrome.runtime.getURL()` for all resource paths from content scripts
+- **`web_accessible_resources` requirement:** Any JS module imported by a content
+  script (e.g. `utils.js` imported by `duration-playing.js`) must be listed under
+  `web_accessible_resources` in all manifests. The browser resolves dynamic imports
+  to `chrome-extension://<id>/scripts/<file>` and will block them otherwise.
+- Theme detection pattern (preserve this):
+  ```ts
+  const checkTheme = (): 'dark' | 'light' =>
+      document.querySelector('[dark]') ? 'dark' : 'light';
+  ```
+- Theme is applied to injected elements as an empty attribute for CSS targeting:
+  ```ts
+  element.setAttribute(theme, '');  // theme is 'dark' or 'light'
+  ```
+- CSS attribute selectors `[dark]` and `[light]` are the theming mechanism — do not
+  replace with CSS custom properties without updating all injection code
+
+---
+
+## CSS
+
+- Attribute selectors for theming: `[dark] { ... }` / `[light] { ... }`
+- Use `rgba()` for all colors to preserve overlay compatibility with YouTube's UI
+- `common.css` for shared styles across features; one CSS file per feature module
+- `kebab-case` for all class names and IDs
+- Avoid CSS custom properties unless adding full theme system support
+
+---
+
+## Logging
+
+- `console.log()` is used for development debugging with structured prefixes:
+  - `"START :: <description>"` — when an observer or process begins
+  - `"END :: <description>"` — when an observer disconnects
+- Gate all `console.log` calls behind `import.meta.env.DEV` in production builds:
+  ```ts
+  if (import.meta.env.DEV) console.log('START :: observer started');
+  ```
+
+---
+
+## Git and Commit Conventions
+
+- **Branches:** `main` for releases, `dev` for active development; feature branches
+  off `dev` named `feature/<short-description>` or `fix/<short-description>`
+- **Commit message format:** `<TYPE>: <short imperative description>`
+  - Types: `FIX`, `ADD`, `UPDATE`, `REMOVE`, `REFACTOR`, `DOCS`, `CI`, `TEST`
+  - Examples:
+    - `FIX: handle missing playlist element on initial page load`
+    - `ADD: unit tests for secondsToTs utility function`
+    - `CI: add GitHub Actions workflow for lint and test on PR`
+- Keep commits atomic — one logical change per commit
+- Do not commit `node_modules/`, `dist/`, or `.zip` release archives (add to `.gitignore`)
+
+---
+
+## Revamp Priorities
+
+Work in this order when contributing to the modernisation effort:
+
+1. ~~**Bootstrap tooling** — add `package.json`, configure Vite (bundler), ESLint
+   (linter), Vitest (test runner), and `tsconfig.json` with `strict: true`~~ **DONE**
+2. ~~**Fix `.gitignore`** — exclude `node_modules/`, `dist/`, `*.zip`~~ **DONE**
+3. ~~**Migrate source to `src/`** — convert `scripts/*.js` → `src/scripts/*.ts`,
+   move `css/` and `html/` into `src/`~~ **DONE**
+4. ~~**Write unit tests** — start with pure functions: `timeListToSeconds`,
+   `secondsToTs`, `calculateTotalTime`; target `tests/` directory with Vitest~~ **DONE** (`tests/utils.test.ts`, 25 tests passing)
+5. ~~**CI pipeline** — add GitHub Actions: lint + type-check + test on every PR;
+   build on push to `main`~~ **DONE** (`.github/workflows/ci.yml` + `build.yml`)
+6. ~~**Release automation** — zip packaging, `CHANGELOG.md`, GitHub Releases triggered
+   by version tags; separate Chrome and Firefox artifacts~~ **DONE** (`.github/workflows/release.yml`)
+7. ~~**Cross-browser parity** — consolidate manifests; browser differences handled
+   via `transformManifest` in `vite.config.ts`~~ **DONE**
+
+---
+
+## Browser Compatibility Notes
+
+| Feature                          | Chrome (MV3) | Firefox (MV3)        |
+|----------------------------------|--------------|----------------------|
+| `chrome.scripting` API           | Supported    | Not used (handled via `transformManifest`) |
+| Dynamic `import()` in content scripts | Supported | Supported (MV3)  |
+| Service worker background        | Required     | Supported            |
+| `web_accessible_resources`       | Required for dynamic imports | Required |

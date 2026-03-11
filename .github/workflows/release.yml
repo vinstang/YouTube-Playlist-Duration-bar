@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  release:
+    name: Build, Zip, and Publish Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # required to create a GitHub Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Test
+        run: npm run test
+
+      - name: Extract version from tag
+        id: version
+        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Chrome
+        run: npm run build:chrome
+
+      - name: Zip Chrome build
+        run: |
+          cd dist
+          zip -r "../chrome-v${{ steps.version.outputs.value }}.zip" .
+          cd ..
+
+      - name: Clean dist
+        run: rm -rf dist/
+
+      - name: Build Firefox
+        run: npm run build:firefox
+
+      - name: Zip Firefox build
+        run: |
+          cd dist
+          zip -r "../firefox-v${{ steps.version.outputs.value }}.zip" .
+          cd ..
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.value }}"
+          # Extract the block between ## [VERSION] and the next ## [
+          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          # Write to a file to safely pass multi-line content to the next step
+          echo "$NOTES" > release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.version.outputs.value }}
+          body_path: release-notes.md
+          files: |
+            chrome-v${{ steps.version.outputs.value }}.zip
+            firefox-v${{ steps.version.outputs.value }}.zip
+          fail_on_unmatched_files: true

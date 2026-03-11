@@ -1,0 +1,194 @@
+/* ========== Tokens ========== */
+:root {
+    --bg:              rgba(255, 255, 255, 1);
+    --text:            rgba(15, 15, 15, 1);
+    --text-muted:      rgba(96, 96, 96, 1);
+    --border:          rgba(0, 0, 0, 0.1);
+    --btn-bg:          rgba(0, 0, 0, 0.06);
+    --btn-bg-hover:    rgba(0, 0, 0, 0.12);
+    --btn-text:        rgba(15, 15, 15, 1);
+    --notice-bg:       rgba(255, 200, 0, 0.12);
+    --notice-border:   rgba(220, 160, 0, 0.4);
+    --reload-bg:       rgba(204, 0, 0, 1);
+    --reload-bg-hover: rgba(170, 0, 0, 1);
+    --reload-text:     rgba(255, 255, 255, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg:              rgba(33, 33, 33, 1);
+        --text:            rgba(241, 241, 241, 1);
+        --text-muted:      rgba(170, 170, 170, 1);
+        --border:          rgba(255, 255, 255, 0.12);
+        --btn-bg:          rgba(255, 255, 255, 0.1);
+        --btn-bg-hover:    rgba(255, 255, 255, 0.18);
+        --btn-text:        rgba(241, 241, 241, 1);
+        --notice-bg:       rgba(255, 200, 0, 0.1);
+        --notice-border:   rgba(220, 160, 0, 0.35);
+        --reload-bg:       rgba(204, 0, 0, 1);
+        --reload-bg-hover: rgba(230, 0, 0, 1);
+        --reload-text:     rgba(255, 255, 255, 1);
+    }
+}
+
+/* ========== Base ========== */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    width: 300px;
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: Roboto, Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+/* ========== Update notice ========== */
+.update-notice {
+    background-color: var(--notice-bg);
+    border-bottom: 1px solid var(--notice-border);
+    padding: 12px 14px;
+}
+
+.update-notice.hidden {
+    display: none;
+}
+
+.update-notice-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.update-notice-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.update-dismiss {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    color: var(--text-muted);
+}
+
+.update-dismiss:hover {
+    color: var(--text);
+}
+
+.update-notice-body {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+.update-reload {
+    width: 100%;
+    padding: 7px 0;
+    border: none;
+    border-radius: 6px;
+    background-color: var(--reload-bg);
+    color: var(--reload-text);
+    font-family: Roboto, Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.update-reload:hover {
+    background-color: var(--reload-bg-hover);
+}
+
+/* ========== Header ========== */
+.popup-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 14px 12px;
+}
+
+.popup-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.popup-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.popup-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.popup-version {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* ========== Divider ========== */
+.popup-divider {
+    height: 1px;
+    background-color: var(--border);
+    margin: 0 14px;
+}
+
+/* ========== Permissions ========== */
+.permission-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    gap: 10px;
+}
+
+.permission-label {
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.grant-button {
+    padding: 5px 12px;
+    border: none;
+    border-radius: 6px;
+    background-color: var(--btn-bg);
+    color: var(--btn-text);
+    font-family: Roboto, Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background-color 0.15s;
+}
+
+.grant-button:hover:not(:disabled) {
+    background-color: var(--btn-bg-hover);
+}
+
+.grant-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

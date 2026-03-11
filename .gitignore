@@ -1,1 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Release archives
 *.zip
+*.crx
+*.xpi
+
+# OS artefacts
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
+
+# Local env files
+.env
+.env.local

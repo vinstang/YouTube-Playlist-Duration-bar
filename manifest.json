@@ -1,19 +1,20 @@
 {
     "name": "YouTube Playlist Duration bar",
-    "version": "0.6.5",
+    "version": "0.7.0",
     "description": "A progress bar to show playlist progress and duration",
     "manifest_version": 3,
     "background": {
-        "service_worker": "scripts/background.js"
+        "service_worker": "src/scripts/background.ts"
     },
     "permissions": [
-        "scripting"
+        "scripting",
+        "storage"
     ],
     "host_permissions": [
         "*://www.youtube.com/*"
     ],
     "action": {
-        "default_popup": "html/popup.html"
+        "default_popup": "src/html/popup.html"
     },
     "content_scripts": [
         {
@@ -21,23 +22,12 @@
                 "*://www.youtube.com/*"
             ],
             "js": [
-                "scripts/content.js"
+                "src/scripts/content.ts"
             ],
             "css": [
-                "css/common.css",
-                "css/duration-playing.css",
-                "css/duration-playlist.css"
-            ]
-        }
-    ],
-    "web_accessible_resources": [
-        {
-            "matches": [
-                "*://www.youtube.com/*"
-            ],
-            "resources": [
-                "scripts/duration-playing.js",
-                "scripts/duration-playlist.js"
+                "src/css/common.css",
+                "src/css/duration-playing.css",
+                "src/css/duration-playlist.css"
             ]
         }
     ],
