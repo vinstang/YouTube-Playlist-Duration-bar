@@ -7,7 +7,8 @@
         "service_worker": "src/scripts/background.ts"
     },
     "permissions": [
-        "scripting"
+        "scripting",
+        "storage"
     ],
     "host_permissions": [
         "*://www.youtube.com/*"

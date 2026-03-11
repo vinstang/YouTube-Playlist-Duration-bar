@@ -2,21 +2,27 @@ export {};
 
 const DEBUG = import.meta.env.DEV;
 
-chrome.runtime.onInstalled.addListener(async () => {
-    for (const cs of chrome.runtime.getManifest().content_scripts ?? []) {
-        const tabs = await chrome.tabs.query({ url: cs.matches });
-        for (const tab of tabs) {
-            if (tab.id === undefined) continue;
-            if (DEBUG) console.log(`Injecting ${cs.js?.join(', ')} into ${tab.url}`);
-            try {
-                await chrome.scripting.executeScript({
-                    target: { tabId: tab.id },
-                    files: cs.js ?? [],
-                });
-            } catch (err) {
-                // Tab may have been closed or navigated away — swallow expected lifecycle errors.
-                if (DEBUG) console.log('executeScript failed:', err);
-            }
-        }
+chrome.runtime.onInstalled.addListener(async (details) => {
+    if (details.reason !== 'install' && details.reason !== 'update') return;
+
+    // Store the reason so the popup can tailor its message.
+    await chrome.storage.local.set({
+        updatePending: true,
+        updateReason: details.reason,
+    });
+
+    // Badge on the extension icon draws the user's attention passively.
+    // The popup clears this when the user acknowledges the notice.
+    await chrome.action.setBadgeText({ text: '!' });
+    await chrome.action.setBadgeBackgroundColor({ color: '#FF0000' });
+
+    // Open the popup automatically (Chrome 127+, recent Firefox).
+    // Gracefully degrade on older browsers — the badge still signals the user.
+    try {
+        await chrome.action.openPopup();
+    } catch {
+        if (DEBUG) console.log('openPopup() not supported in this browser version');
     }
+
+    if (DEBUG) console.log(`onInstalled(${details.reason}): badge set, storage written`);
 });

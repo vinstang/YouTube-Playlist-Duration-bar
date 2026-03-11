@@ -1,16 +1,41 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8" />
     <script type="module" src="../scripts/popup.ts"></script>
-    <link rel="stylesheet" type="text/css" href="../css/popup.css">
+    <link rel="stylesheet" type="text/css" href="../css/popup.css" />
 </head>
 
 <body>
-    <div id="permissionContainer">
-        <p id="permissionText">Permissions to access youtube.com: </p>
-        <button id="grantButton">Grant</button>
+
+    <!-- Update / install notice — hidden until popup.ts shows it -->
+    <div id="update-notice" class="update-notice hidden">
+        <div class="update-notice-header">
+            <span id="update-notice-title" class="update-notice-title"></span>
+            <button id="update-dismiss" class="update-dismiss" aria-label="Dismiss">✕</button>
+        </div>
+        <p id="update-notice-body" class="update-notice-body"></p>
+        <button id="update-reload" class="update-reload">Reload all YouTube tabs</button>
     </div>
+
+    <!-- Header -->
+    <div class="popup-header">
+        <img id="popup-icon" class="popup-icon" alt="" />
+        <div class="popup-title-group">
+            <span class="popup-name">YouTube Playlist Duration Bar</span>
+            <span id="popup-version" class="popup-version"></span>
+        </div>
+    </div>
+
+    <div class="popup-divider"></div>
+
+    <!-- Permissions -->
+    <div class="permission-row">
+        <span class="permission-label">Access to youtube.com</span>
+        <button id="grantButton" class="grant-button">Grant</button>
+    </div>
+
 </body>
 
 </html>
