@@ -3,7 +3,6 @@ import webExtension from 'vite-plugin-web-extension';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 const target = process.env['TARGET'] ?? 'chrome';
-const manifest = target === 'firefox' ? './manifest-firefox.json' : './manifest-chrome.json';
 
 export default defineConfig({
     build: {
@@ -13,7 +12,7 @@ export default defineConfig({
     },
     plugins: [
         webExtension({
-            manifest,
+            manifest: './manifest.json',
             // Disable auto-launching a browser in watch mode.
             // Load dist/ manually via chrome://extensions "Load unpacked".
             disableAutoLaunch: true,
@@ -23,19 +22,37 @@ export default defineConfig({
             // named exports that dynamic import() requires. By omitting WAR from the
             // source manifests, the plugin never processes those files; viteStaticCopy
             // below compiles them as proper ESM and places them at dist/scripts/*.js.
-            transformManifest: (m) => ({
-                ...m,
-                web_accessible_resources: [
-                    {
-                        matches: ['*://www.youtube.com/*'],
-                        resources: [
-                            'scripts/utils.js',
-                            'scripts/duration-playing.js',
-                            'scripts/duration-playlist.js',
-                        ],
+            transformManifest: (m) => {
+                const base = {
+                    ...m,
+                    web_accessible_resources: [
+                        {
+                            matches: ['*://www.youtube.com/*'],
+                            resources: [
+                                'scripts/utils.js',
+                                'scripts/duration-playing.js',
+                                'scripts/duration-playlist.js',
+                            ],
+                        },
+                    ],
+                };
+                if (target !== 'firefox') return base;
+                // Firefox does not support background.service_worker;
+                // replace it with background.scripts (persistent background page).
+                const { background, ...rest } = base;
+                const serviceWorker = (background as { service_worker?: string }).service_worker;
+                return {
+                    ...rest,
+                    background: {
+                        scripts: [serviceWorker ?? 'src/scripts/background.js'],
                     },
-                ],
-            }),
+                    browser_specific_settings: {
+                        gecko: {
+                            id: 'wai462149@gmail.com',
+                        },
+                    },
+                };
+            },
         }),
         // Copy static assets that the plugin doesn't handle automatically.
         viteStaticCopy({

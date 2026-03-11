@@ -5,6 +5,12 @@ project context, commands, and code style guidelines needed to work effectively.
 
 ---
 
+## Rules for generative AI
+
+1. **Do not** commit and push without human approval. Always ask.
+
+---
+
 ## Project Overview
 
 A Chrome/Firefox browser extension (Manifest V3) that injects a progress bar and
