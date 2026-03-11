@@ -1,6 +1,6 @@
 {
     "name": "youtube-playlist-duration-bar",
-    "version": "0.6.5",
+    "version": "0.0.0",
     "description": "A Chrome/Firefox extension to display a progress bar showing playlist progress and duration.",
     "private": true,
     "type": "module",
