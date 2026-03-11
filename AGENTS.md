@@ -19,40 +19,29 @@ Firefox Add-ons at v0.6.5. The project is being revamped into a proper open-sour
 extension with a TypeScript build pipeline, tests, CI/CD, and structured releases.
 
 **Extension entry points:**
-- `scripts/content.js` — injected into every YouTube page; sets up MutationObservers
-- `scripts/background.js` — service worker; re-injects scripts on install
-- `scripts/duration-playing.js` — ES module; handles the "now playing" playlist view
-- `scripts/duration-playlist.js` — ES module; handles the standalone playlist page view
-- `scripts/utils.js` — shared utility module; exports `timeListToSeconds`, `secondsToTs`, `calculateTotalTime`; must be listed in `web_accessible_resources`
-- `html/popup.html` + `scripts/popup.js` — browser action popup UI
+- `src/scripts/content.ts` — injected into every YouTube page; sets up MutationObservers
+- `src/scripts/background.ts` — service worker; re-injects scripts on install
+- `src/scripts/duration-playing.ts` — ES module; handles the "now playing" playlist view
+- `src/scripts/duration-playlist.ts` — ES module; handles the standalone playlist page view
+- `src/scripts/utils.ts` — shared utility module; exports `timeListToSeconds`, `secondsToTs`, `calculateTotalTime`; must be listed in `web_accessible_resources`
+- `src/html/popup.html` + `src/scripts/popup.ts` — browser action popup UI
 
 ---
 
 ## Repository Structure
 
 ```
-scripts/              # CURRENT source JS (root-level, pre-revamp)
-css/                  # CURRENT source CSS (root-level, pre-revamp)
-html/                 # CURRENT source HTML (root-level, pre-revamp)
-src/                  # FUTURE home of TypeScript source (currently empty skeleton)
-  scripts/            #   → TS equivalents of scripts/
-  css/                #   → CSS/SCSS source
-  html/               #   → HTML templates
+src/                  # TypeScript source
+  scripts/            #   → content.ts, background.ts, duration-playing.ts, duration-playlist.ts, utils.ts, popup.ts
+  css/                #   → common.css, duration-playing.css, duration-playlist.css, popup.css
+  html/               #   → popup.html
 dist/                 # Build output — never commit (loaded as unpacked extension in Playwright Chrome)
 tests/                # Test files — Vitest (tests/utils.test.ts — 25 tests, all passing)
 icons/                # Extension icons (PNG + GIMP .xcf originals)
-manifest.json         # Active manifest (Chrome, MV3)
-manifest-chrome.json  # Chrome-specific copy
-manifest-firefox.json # Firefox variant (no "scripting" permission)
-Release/              # Zip archives of prior releases
-.github/workflows/    # CI/CD pipelines (ci.yml — lint/type-check/test on PRs; build.yml — artifacts on push to main)
+manifest.json         # Single source manifest; browser differences handled via transformManifest in vite.config.ts
+vite.config.ts        # Build config; injects WAR entries + Firefox-specific fields via transformManifest
+.github/workflows/    # CI/CD pipelines (ci.yml — lint/type-check/test on PRs; build.yml — manual artifact build; release.yml — tag-triggered release)
 ```
-
-**IMPORTANT:** Until the build pipeline is established, `scripts/`, `css/`, and
-`html/` at the repository root are the authoritative source files. Once migration
-to `src/` is complete, the root-level directories become obsolete and should be
-removed. Do not add new features to the root-level `scripts/` directory — new work
-goes into `src/`.
 
 ---
 
@@ -96,13 +85,11 @@ than bundled. Do not move these files into the standard Vite entry points.
 
 ---
 
-## Language: TypeScript Migration
+## Language: TypeScript
 
-The project is migrating from Vanilla JavaScript to TypeScript. Follow these rules:
+The project is fully TypeScript. Follow these rules:
 
-- **New code goes in `src/` as `.ts` files** — do not add `.js` files to `src/`
-- **Existing `scripts/*.js` files** are legacy — migrate them to `src/scripts/*.ts`
-  when touching them as part of a feature or fix
+- **All code goes in `src/` as `.ts` files** — do not add `.js` files to `src/`
 - Use **`strict: true`** in `tsconfig.json` (no implicit `any`, strict null checks)
 - Prefer explicit return types on exported functions
 - Use `interface` for object shapes (DOM element groups, return value types)
@@ -138,9 +125,9 @@ The project is migrating from Vanilla JavaScript to TypeScript. Follow these rul
 - **Boolean flags:** prefix with verb — `playingObserverStarted`, `isWatched`
 - Avoid abbreviations except established ones: `ts` (timestamp), `el` (element)
 
-### Known Typo — Fix on Sight
-- `createUiELement` (capital L) exists in both `duration-playing.js` and
-  `duration-playlist.js`. Rename to `createUiElement` whenever these files are touched.
+### Known Typo — Fixed
+- `createUiELement` (capital L) was renamed to `createUiElement` in both
+  `duration-playing.ts` and `duration-playlist.ts` during the TS migration.
 
 ### Imports
 - Use static `import` at the top of `.ts` files
@@ -205,10 +192,9 @@ Follow these rules when writing new code or modifying existing code:
 - `console.log()` is used for development debugging with structured prefixes:
   - `"START :: <description>"` — when an observer or process begins
   - `"END :: <description>"` — when an observer disconnects
-- Gate all `console.log` calls behind a `DEBUG` flag in production builds:
+- Gate all `console.log` calls behind `import.meta.env.DEV` in production builds:
   ```ts
-  const DEBUG = process.env.NODE_ENV !== 'production';
-  if (DEBUG) console.log('START :: observer started');
+  if (import.meta.env.DEV) console.log('START :: observer started');
   ```
 
 ---
@@ -235,16 +221,16 @@ Work in this order when contributing to the modernisation effort:
 1. ~~**Bootstrap tooling** — add `package.json`, configure Vite (bundler), ESLint
    (linter), Vitest (test runner), and `tsconfig.json` with `strict: true`~~ **DONE**
 2. ~~**Fix `.gitignore`** — exclude `node_modules/`, `dist/`, `*.zip`~~ **DONE**
-3. **Migrate source to `src/`** — convert `scripts/*.js` → `src/scripts/*.ts`,
-   move `css/` and `html/` into `src/`
+3. ~~**Migrate source to `src/`** — convert `scripts/*.js` → `src/scripts/*.ts`,
+   move `css/` and `html/` into `src/`~~ **DONE**
 4. ~~**Write unit tests** — start with pure functions: `timeListToSeconds`,
    `secondsToTs`, `calculateTotalTime`; target `tests/` directory with Vitest~~ **DONE** (`tests/utils.test.ts`, 25 tests passing)
 5. ~~**CI pipeline** — add GitHub Actions: lint + type-check + test on every PR;
    build on push to `main`~~ **DONE** (`.github/workflows/ci.yml` + `build.yml`)
-6. **Release automation** — zip packaging, `CHANGELOG.md`, GitHub Releases triggered
-   by version tags; separate Chrome and Firefox artifacts
-7. **Cross-browser parity** — align `manifest-firefox.json` version with Chrome
-   and resolve the missing `"scripting"` permission difference
+6. ~~**Release automation** — zip packaging, `CHANGELOG.md`, GitHub Releases triggered
+   by version tags; separate Chrome and Firefox artifacts~~ **DONE** (`.github/workflows/release.yml`)
+7. ~~**Cross-browser parity** — consolidate manifests; browser differences handled
+   via `transformManifest` in `vite.config.ts`~~ **DONE**
 
 ---
 
@@ -252,7 +238,7 @@ Work in this order when contributing to the modernisation effort:
 
 | Feature                          | Chrome (MV3) | Firefox (MV3)        |
 |----------------------------------|--------------|----------------------|
-| `chrome.scripting` API           | Supported    | Not used (see manifest-firefox.json) |
+| `chrome.scripting` API           | Supported    | Not used (handled via `transformManifest`) |
 | Dynamic `import()` in content scripts | Supported | Supported (MV3)  |
 | Service worker background        | Required     | Supported            |
 | `web_accessible_resources`       | Required for dynamic imports | Required |
