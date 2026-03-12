@@ -4,6 +4,7 @@
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/klbacnllhiilbiiedcbgfafmnedldgeg?label=Chrome%20Web%20Store&logo=googlechrome&logoColor=white)](https://chrome.google.com/webstore/detail/youtube-playlist-duration/klbacnllhiilbiiedcbgfafmnedldgeg)
 [![Firefox Add-ons](https://img.shields.io/amo/v/youtube-playlist-duration-bar?label=Firefox%20Add-ons&logo=firefox&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/youtube-playlist-duration-bar/)
+[![CI](https://github.com/vinstang/YouTube-Playlist-Duration-bar/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vinstang/YouTube-Playlist-Duration-bar/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
