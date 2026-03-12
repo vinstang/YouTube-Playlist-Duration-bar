@@ -1,0 +1,45 @@
+YouTube Playlist Duration Bar
+
+Know exactly how long your YouTube playlists are — and how far you've come.
+
+YouTube doesn't tell you how long a playlist is, or how much of it you've watched. This extension fixes that instantly.
+
+
+WHILE WATCHING A PLAYLIST VIDEO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Total playlist duration
+• Watched time so far
+• Progress percentage (shown as a number and a visual bar)
+• Remaining time until the playlist ends
+
+Everything updates live as you watch — no page reloads needed.
+
+
+WHILE BROWSING A PLAYLIST PAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Total duration of all videos in the playlist
+• Video count displayed at a glance
+
+
+WORKS EVERYWHERE
+━━━━━━━━━━━━━━━━
+✔ Public playlists, private playlists, Watch Later, Liked Videos
+✔ Dark mode and light mode — matches YouTube's theme automatically
+✔ Updates in real time when videos are added, removed, or reordered
+✔ No sign-in required, no permissions beyond YouTube
+
+
+PERFECT FOR
+━━━━━━━━━━━
+📚 Students planning study sessions with lecture playlists
+🎵 Music listeners tracking progress through long mixes
+🎬 Binge-watchers of documentary series or podcast playlists
+🏋️ Workout playlists where timing actually matters
+📋 Playlist curators who want to know the total runtime
+
+
+PRIVACY
+━━━━━━━
+This extension collects no data whatsoever. It reads only the video duration elements already visible on your screen and does all processing locally in your browser.
+
+Note: YouTube's UI loads approximately 200 videos at a time. Scroll down to load more videos for an accurate count on very large playlists.
