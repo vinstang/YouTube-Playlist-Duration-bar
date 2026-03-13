@@ -6,9 +6,6 @@
     "background": {
         "service_worker": "src/scripts/background.ts"
     },
-    "permissions": [
-        "scripting"
-    ],
     "host_permissions": [
         "*://www.youtube.com/*"
     ],
