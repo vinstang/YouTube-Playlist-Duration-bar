@@ -2,14 +2,14 @@ export {};
 
 const DEBUG = import.meta.env.DEV;
 
+// Holds the install/update reason until the popup consumes it.
+// Intentionally in-memory only — the state is immediately discardable.
+let pendingUpdate: { reason: string } | null = null;
+
 chrome.runtime.onInstalled.addListener(async (details) => {
     if (details.reason !== 'install' && details.reason !== 'update') return;
 
-    // Store the reason so the popup can tailor its message.
-    await chrome.storage.local.set({
-        updatePending: true,
-        updateReason: details.reason,
-    });
+    pendingUpdate = { reason: details.reason };
 
     // Badge on the extension icon draws the user's attention passively.
     // The popup clears this when the user acknowledges the notice.
@@ -24,5 +24,12 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         if (DEBUG) console.log('openPopup() not supported in this browser version');
     }
 
-    if (DEBUG) console.log(`onInstalled(${details.reason}): badge set, storage written`);
+    if (DEBUG) console.log(`onInstalled(${details.reason}): badge set`);
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type !== 'getUpdateState') return false;
+    sendResponse(pendingUpdate);
+    pendingUpdate = null;
+    return false;
 });
