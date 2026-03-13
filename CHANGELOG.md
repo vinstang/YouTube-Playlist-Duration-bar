@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.0] - 2026-03-14
+
+### Fixed
+- Removed unused `scripting` and `storage` permissions
+
+### Changed
+- Update notification state is now held in memory instead of `chrome.storage.local`
+- Extension version is now injected from the git tag at build time — `manifest.json` no longer needs manual version bumps
+
+---
+
 ## [0.7.0] - 2026-03-12
 
 ### Added
