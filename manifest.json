@@ -1,7 +1,7 @@
 {
     "name": "YouTube Playlist Duration bar",
     "version": "0.7.0",
-    "description": "A progress bar to show playlist progress and duration",
+    "description": "Know exactly how long your YouTube playlists are — and how far you've come.",
     "manifest_version": 3,
     "background": {
         "service_worker": "src/scripts/background.ts"

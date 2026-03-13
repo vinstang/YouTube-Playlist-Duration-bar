@@ -37,8 +37,8 @@ Everything updates automatically as you watch, skip, or reorder videos — no pa
 
 | While watching | Browsing a playlist |
 |---|---|
-| ![Playing view dark](screenshot/playing-large-dark.png) | ![Playlist view dark](screenshot/playlist-bothsize-dark.png) |
-| ![Playing view light](screenshot/playing-large-light.png) | ![Both sizes](screenshot/playing-both.png) |
+| ![Playing view dark](screenshot/playing-large-dark.png) | ![Playlist view dark](screenshot/playlist-dark.png) |
+| ![Playing view light](screenshot/playing-large-light.png) | ![Playlist view light](screenshot/playlist-light.png) |
 
 ---
 
