@@ -13,26 +13,28 @@ interface VideoTimeList {
     fullList: string[];
 }
 
-let theme: Theme | undefined;
 let resizeObserver: ResizeObserver | undefined;
 
 const checkTheme = (): Theme =>
     document.querySelector('[dark]') ? 'dark' : 'light';
 
-const createUiElement = (currentTheme: Theme): PlaylistElements => {
+const createUiElement = (theme: Theme): PlaylistElements => {
     const divDurationBlock = document.createElement('div');
-    divDurationBlock.setAttribute(currentTheme, '');
+    divDurationBlock.setAttribute(theme, '');
     divDurationBlock.id = 'duration-block-playlist';
     divDurationBlock.className = 'duration-block';
 
+    // The playlist header always renders on a dark background (playlist artwork),
+    // regardless of YouTube's light/dark theme — always apply the 'dark' attribute
+    // so the CSS dark-mode text colors (white/light) are used.
     const durationTotal = document.createElement('span');
-    durationTotal.setAttribute(currentTheme, '');
+    durationTotal.setAttribute('dark', '');
     durationTotal.id = 'duration-total-playlist';
     durationTotal.className = 'duration-content';
     durationTotal.title = 'Only count video shown in the playlist panel.';
 
     const videoCounted = document.createElement('span');
-    videoCounted.setAttribute(currentTheme, '');
+    videoCounted.setAttribute('dark', '');
     videoCounted.id = 'video-counted';
     videoCounted.className = 'played-content';
     videoCounted.title = 'If this number not matching the total number of videos in this playlist,\nscroll down to load more video, or some videos are hidden.';
@@ -143,10 +145,7 @@ const startResizeWatcher = (): void => {
 };
 
 export const updateDurationPlaylist = (): void => {
-    if (theme === undefined) {
-        theme = checkTheme();
-    }
-
+    const theme = checkTheme();
     const { count, fullList } = getVideoTimeList();
     const totalSeconds = timeListToSeconds(fullList);
     const totalTs = secondsToTs(totalSeconds);
@@ -155,6 +154,14 @@ export const updateDurationPlaylist = (): void => {
         const els = createUiElement(theme);
         appendUiElement(els);
         startResizeWatcher();
+    } else {
+        // Keep background/border theme attribute in sync when theme changes.
+        const block = document.getElementById('duration-block-playlist');
+        if (block) {
+            const other: Theme = theme === 'dark' ? 'light' : 'dark';
+            block.removeAttribute(other);
+            block.setAttribute(theme, '');
+        }
     }
 
     updateUI(totalTs, count);
