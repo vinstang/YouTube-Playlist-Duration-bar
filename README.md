@@ -2,10 +2,10 @@
 
 **Know exactly how long your YouTube playlists are — and how far you've come.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/vinstang/YouTube-Playlist-Duration-bar/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vinstang/YouTube-Playlist-Duration-bar/actions/workflows/ci.yml)
-[![GitHub Stars](https://img.shields.io/github/stars/vinstang/YouTube-Playlist-Duration-bar?style=flat&logo=github)](https://github.com/vinstang/YouTube-Playlist-Duration-bar/stargazers)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-blue)](manifest.json)
+[![GitHub Stars](https://img.shields.io/github/stars/vinstang/YouTube-Playlist-Duration-bar?style=flat&logo=github)](https://github.com/vinstang/YouTube-Playlist-Duration-bar/stargazers)
+[![CI](https://github.com/vinstang/YouTube-Playlist-Duration-bar/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vinstang/YouTube-Playlist-Duration-bar/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/klbacnllhiilbiiedcbgfafmnedldgeg?label=Chrome%20Web%20Store&logo=googlechrome&logoColor=white)](https://chrome.google.com/webstore/detail/youtube-playlist-duration/klbacnllhiilbiiedcbgfafmnedldgeg)
 [![Chrome Users](https://img.shields.io/chrome-web-store/users/klbacnllhiilbiiedcbgfafmnedldgeg?label=Chrome%20Users&logo=googlechrome&logoColor=white)](https://chrome.google.com/webstore/detail/youtube-playlist-duration/klbacnllhiilbiiedcbgfafmnedldgeg)
