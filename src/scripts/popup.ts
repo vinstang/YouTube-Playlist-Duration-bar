@@ -4,11 +4,6 @@ const permissionNeeded: chrome.permissions.Permissions = {
     origins: ['*://www.youtube.com/*'],
 };
 
-const clearUpdateState = async (): Promise<void> => {
-    await chrome.storage.local.remove(['updatePending', 'updateReason']);
-    await chrome.action.setBadgeText({ text: '' });
-};
-
 document.addEventListener('DOMContentLoaded', async () => {
     // ── Icon & version ──────────────────────────────────────────────────────
     const iconEl = document.getElementById('popup-icon') as HTMLImageElement | null;
@@ -28,13 +23,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const dismissBtn  = document.getElementById('update-dismiss');
     const reloadBtn   = document.getElementById('update-reload');
 
-    const { updatePending, updateReason } = await chrome.storage.local.get([
-        'updatePending',
-        'updateReason',
-    ]) as { updatePending?: boolean; updateReason?: string };
+    const updateState = await chrome.runtime.sendMessage({ type: 'getUpdateState' }) as { reason: string } | null;
 
-    if (updatePending && notice && noticeTitle && noticeBody) {
-        const isInstall = updateReason === 'install';
+    if (updateState && notice && noticeTitle && noticeBody) {
+        const isInstall = updateState.reason === 'install';
 
         noticeTitle.textContent = isInstall ? 'Extension installed' : 'Extension updated';
         noticeBody.textContent  = isInstall
@@ -43,18 +35,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         notice.classList.remove('hidden');
 
-        dismissBtn?.addEventListener('click', async () => {
-            await clearUpdateState();
+        const dismissNotice = async (): Promise<void> => {
+            await chrome.action.setBadgeText({ text: '' });
             notice.classList.add('hidden');
-        });
+        };
+
+        dismissBtn?.addEventListener('click', dismissNotice);
 
         reloadBtn?.addEventListener('click', async () => {
             const tabs = await chrome.tabs.query({ url: '*://www.youtube.com/*' });
             for (const tab of tabs) {
                 if (tab.id !== undefined) chrome.tabs.reload(tab.id);
             }
-            await clearUpdateState();
-            notice.classList.add('hidden');
+            await dismissNotice();
         });
     }
 

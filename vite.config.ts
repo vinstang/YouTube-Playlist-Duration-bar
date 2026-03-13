@@ -1,6 +1,7 @@
 import { defineConfig, transformWithEsbuild } from 'vite';
 import webExtension from 'vite-plugin-web-extension';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
+import pkg from './package.json';
 
 const target = process.env['TARGET'] ?? 'chrome';
 
@@ -22,10 +23,11 @@ export default defineConfig({
             // named exports that dynamic import() requires. By omitting WAR from the
             // source manifests, the plugin never processes those files; viteStaticCopy
             // below compiles them as proper ESM and places them at dist/scripts/*.js.
-            transformManifest: (m) => {
-                const base = {
-                    ...m,
-                    web_accessible_resources: [
+                transformManifest: (m) => {
+                    const base = {
+                        ...m,
+                        version: pkg.version,
+                        web_accessible_resources: [
                         {
                             matches: ['*://www.youtube.com/*'],
                             resources: [
