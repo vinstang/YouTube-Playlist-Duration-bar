@@ -1,15 +1,11 @@
 {
     "name": "YouTube Playlist Duration bar",
-    "version": "0.7.0",
+    "version": "0.0.0",
     "description": "A progress bar to show playlist progress and duration",
     "manifest_version": 3,
     "background": {
         "service_worker": "src/scripts/background.ts"
     },
-    "permissions": [
-        "scripting",
-        "storage"
-    ],
     "host_permissions": [
         "*://www.youtube.com/*"
     ],

@@ -6,7 +6,6 @@ on:
       branch:
         description: Branch to build
         required: true
-        default: dev
         type: string
 
 jobs:
