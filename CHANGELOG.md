@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1] - 2026-03-14
+
+### Fixed
+- Duration bar text style in light mode on playlist pages
+
+---
+
 ## [0.8.0] - 2026-03-14
 
 ### Fixed
