@@ -1,7 +1,7 @@
 # AGENTS.md — YouTube Playlist Duration bar
 
-Agent guidance for this repository. `CLAUDE.md` is a symlink to this file — edit
-only `AGENTS.md`.
+Agent guidance for this repository. Always edit this file directly; do not create a
+`CLAUDE.md` alongside it.
 
 ---
 

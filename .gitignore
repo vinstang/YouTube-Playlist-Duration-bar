@@ -20,10 +20,3 @@ Thumbs.db
 # Local env files
 .env
 .env.local
-
-# Local browser profile + screenshots for manual extension testing
-.playwright-profile/
-.chrome-profile/
-.dev-profile/
-dev-*.png
-dev-*.mjs

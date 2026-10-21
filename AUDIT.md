@@ -1,6 +1,7 @@
 # Code Audit — Pre-release Review
 
-> Generated: 2026-03-12. To be addressed before or after v0.7.0 release.
+> Generated: 2026-03-12. Re-verified against `main` on 2026-10-21.
+> Struck-through items are resolved and kept for traceability; do not act on them.
 
 ---
 
@@ -11,10 +12,10 @@
 | B-01 | High | `manifest.json`, `src/scripts/popup.ts:52` | `"tabs"` permission missing — `chrome.tabs.query` silently returns empty array; reload button does nothing |
 | B-02 | High | `manifest.json`, `src/scripts/popup.ts:65–73` | Grant button permanently disabled; `*://www.youtube.com/*` is in `host_permissions` (always granted), not `optional_host_permissions` — `chrome.permissions.contains()` always returns `true` |
 | B-04 | High | `src/scripts/content.ts:19–75` | `playingObserverStarted` / `playlistObserverStarted` flags never reset on SPA navigation — extension stops working after the first playlist visit |
-| B-03 | Medium | `src/scripts/duration-playing.ts:21`, `src/scripts/duration-playlist.ts:16` | `theme` variable cached at module load time; YouTube theme changes mid-session are ignored on subsequent injections |
+| ~~B-03~~ | ~~Medium~~ | ~~`src/scripts/duration-playing.ts:21`, `src/scripts/duration-playlist.ts:16`~~ | ~~`theme` variable cached at module load time~~ — **DONE** (`checkTheme()` is now called inside each update function, so mid-session theme changes apply) |
 | B-05 | Medium | `src/scripts/duration-playing.ts:105–124` | Currently-playing video (`▶`) miscounted as "remaining" instead of "watched" — flag is flipped before pushing the current item |
 | B-08 | Medium | `src/scripts/duration-playlist.ts:131–143` | `resizeObserver` is attached to `document.documentElement` and never disconnected; fires on every layout change for the entire browser session |
-| B-06 | Low | `src/scripts/duration-playlist.ts:103–115` | Redundant `count` variable always equals `fullList.length`; could silently diverge if loop body is ever modified |
+| ~~B-06~~ | ~~Low~~ | ~~`src/scripts/duration-playlist.ts:103–115`~~ | ~~Redundant `count` variable always equals `fullList.length`~~ — **DONE** (counter removed; `count` is now derived from `fullList.length`) |
 
 ---
 
@@ -41,16 +42,16 @@
 
 | ID | File | Issue |
 |----|------|-------|
-| C-02 | `package.json:3` | Version is `0.0.0` while `manifest.json` is `0.7.0`; should be kept in sync |
+| ~~C-02~~ | ~~`package.json:3`~~ | ~~Version is `0.0.0` while `manifest.json` is `0.7.0`~~ — **DONE** (both are `0.0.0`; `transformManifest` injects the version from `package.json`, and `release.yml` syncs it from the git tag) |
 | C-05 | `vite.config.ts:11` | `process.env['NODE_ENV']` for sourcemap control is unreliable at config-eval time; idiomatic fix: `export default defineConfig(({ mode }) => ({ build: { sourcemap: mode !== 'production' } }))` |
 | C-06 | `vitest.config.ts:5` + `tests/utils.test.ts:1` | `globals: true` is set but Vitest APIs (`describe`, `it`, `expect`) are still explicitly imported — redundant; either remove the imports or set `globals: false` |
-| C-07 | `vite.config.ts:47` | Firefox `background.scripts` fallback path uses `.js` extension: `'src/scripts/background.js'` — should be `.ts` |
+| C-07 | `vite.config.ts:47` | Firefox `background.scripts` fallback path uses `.js`: `'src/scripts/background.js'`. Only reached if `background.service_worker` is absent, so impact is low — and since the plugin rewrites manifest paths to `.js`, verify which form is correct before changing it to `.ts` |
 | ~~G-02~~ | ~~`.gitignore:8`~~ | ~~`Release/` entry is dead clutter~~ — **DONE** (removed) |
 
 ---
 
 ## Notes
 
-- `CLAUDE.md` intentionally kept alongside `AGENTS.md` (user decision).
+- `AGENTS.md` is the single agent-instructions file; `CLAUDE.md` was removed.
 - GitHub Actions versions (`actions/checkout@v6`, `actions/setup-node@v6`) are confirmed valid — v6 exists for both.
 - `actions/upload-artifact@v7` and `softprops/action-gh-release@v2` are also confirmed correct.
