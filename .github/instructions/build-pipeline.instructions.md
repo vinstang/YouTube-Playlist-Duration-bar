@@ -69,9 +69,21 @@ Both browsers share one source manifest. Put Firefox-only fields in
   evaluation time; prefer `defineConfig(({ mode }) => ...)`.
 - The Firefox fallback path is `'src/scripts/background.js'`, but the source file is
   `background.ts`.
-- `viteStaticCopy` copies `icons/*`, including `.xcf` source files, into `dist/`.
 - `eslint.config.js` and the `lint` script still reference a legacy `scripts/` folder
   that no longer exists (`--no-error-on-unmatched-pattern` hides it).
+
+## Icon packaging
+
+`viteStaticCopy` copies only the sizes the extension actually loads:
+
+```ts
+{ src: 'icons/icon-{16,32,48,128}.{png,xcf}', dest: 'icons' }
+```
+
+`manifest.json` references 16/32/48/128 and `popup.ts` loads `icons/icon-48.png`.
+`icons/icon-1024.png` (~4 MB) and the `.xcf` originals for 1024 stay in the repo as
+store-listing sources but are **intentionally excluded** from `dist/`. Do not widen
+this glob back to `icons/*` — it inflates the package roughly 20×.
 
 ## Verify
 

@@ -45,11 +45,14 @@ src/scripts/           TypeScript entry points and ESM feature modules
 src/css/               common.css + one stylesheet per feature
 src/html/              popup.html
 tests/                 Vitest tests (tests/utils.test.ts — 25 tests)
-icons/                 Shipped icons + GIMP .xcf originals
+icons/                 Shipped icons + GIMP .xcf originals + icon-1024 store asset
+screenshot/raw/        Original captures, untouched
+screenshot/output/     Store-ready copies (1280x800, alpha flattened)
 manifest.json          Source manifest; paths point at src/*.ts and are rewritten at build
 vite.config.ts         Build pipeline: manifest transform + ESM static copy
 dist/                  Generated output — gitignored, loaded as unpacked extension
 .github/workflows/     ci.yml, build.yml, release.yml
+.github/instructions/  Area-specific agent rules (build pipeline, content scripts)
 ```
 
 ---
@@ -112,7 +115,9 @@ runtime via dynamic `import()` must instead be emitted as ESM.
 - Firefox (`TARGET=firefox`) replaces `background.service_worker` with
   `background.scripts` and adds `browser_specific_settings.gecko.id`. There is no
   separate Firefox manifest.
-- `viteStaticCopy` copies `icons/*` as-is, including `.xcf` source files.
+- `viteStaticCopy` copies only `icons/icon-{16,32,48,128}.{png,xcf}` into `dist/`.
+  `icons/icon-1024.png` stays in the repo for store-listing uploads and must not be
+  added to the build — it alone is ~4 MB and is not referenced by the manifest.
 
 Detailed rules: [`.github/instructions/build-pipeline.instructions.md`](.github/instructions/build-pipeline.instructions.md).
 
@@ -306,7 +311,7 @@ ESLint, CI, release automation, and a single cross-browser manifest are all in p
 
 [`AUDIT.md`](AUDIT.md) is the standing issue list, but it is a **2026-03-12 snapshot**.
 Re-verify each item against the current code before starting. Items confirmed still
-present on `main` as of 2026-10-20:
+present on `main` as of 2026-10-22:
 
 - **Popup permissions are broken/unreachable:** `tabs` permission missing so the
   "Reload all YouTube tabs" button does nothing (B-01); the grant button is
@@ -317,13 +322,14 @@ present on `main` as of 2026-10-20:
 - **Current-video accounting:** the `▶` item is pushed into `remainingList` (B-05).
 - **Resize observer leak:** `duration-playlist.ts` observes `document.documentElement`
   and never disconnects (B-08).
-- **Config cleanups:** `count` duplicates `fullList.length` (B-06); sourcemap uses
-  unreliable `NODE_ENV` (C-05); Vitest `globals: true` plus explicit imports (C-06);
-  Firefox fallback path uses `.js` (C-07); ESLint still has a legacy `scripts/` block
-  and the lint script includes a non-existent `scripts` path.
+- **Config cleanups:** sourcemap uses unreliable `NODE_ENV` (C-05); Vitest
+  `globals: true` plus explicit imports (C-06); Firefox fallback path uses `.js`
+  (C-07); ESLint still has a legacy `scripts/` block and the lint script includes a
+  non-existent `scripts` path.
 
-Already fixed since the audit: theme is now read per update rather than cached at
-module load (B-03), and release builds inject the version from the git tag (C-02).
+Already fixed since the audit: theme is read per update rather than cached at
+module load (B-03); the redundant video counter was removed (B-06); release builds
+inject the version from the git tag (C-02).
 
 ---
 

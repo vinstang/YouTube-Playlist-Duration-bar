@@ -59,7 +59,10 @@ export default defineConfig({
         // Copy static assets that the plugin doesn't handle automatically.
         viteStaticCopy({
             targets: [
-                { src: 'icons/*', dest: 'icons' },
+                // Only the sizes the manifest and popup reference. icon-1024 is a
+                // 4 MB store-listing asset and has no runtime use, so it stays in
+                // icons/ but is deliberately excluded from the packaged extension.
+                { src: 'icons/icon-{16,32,48,128}.{png,xcf}', dest: 'icons' },
                 // Compile these ES modules from TypeScript source and copy to dist/scripts/.
                 // They must stay as ES modules (not IIFE) so dynamic import() in content.ts
                 // can import named exports at runtime. vite-plugin-web-extension bundles WAR
