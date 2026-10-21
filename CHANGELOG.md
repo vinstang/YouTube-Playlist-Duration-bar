@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.2] - 2026-10-21
+
+### Fixed
+- Duration bar not appearing on playlist pages after YouTube changed the page layout — the extension now recognises both the current and legacy playlist structures
+- Playlist video durations not detected when a row renders the runtime as a thumbnail badge instead of `#text`
+
+### Changed
+- Playlist header lookup falls back to `yt-page-header-view-model` when no other anchor is present
+- Removed a redundant video counter (`AUDIT.md` B-06)
+
+---
+
 ## [0.8.1] - 2026-03-14
 
 ### Fixed

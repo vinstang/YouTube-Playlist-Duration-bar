@@ -15,6 +15,24 @@ interface VideoTimeList {
 
 let resizeObserver: ResizeObserver | undefined;
 
+// Matches MM:SS and HH:MM:SS, so unrelated badge text ("LIVE", "4K") is ignored.
+const TIME_PATTERN = /^\d{1,2}:\d{2}(:\d{2})?$/;
+
+// YouTube has shipped several playlist layouts. Keep the current shape first and
+// fall back to the legacy nested #contents chain.
+const PLAYLIST_LIST_SELECTORS = [
+    'ytd-browse[page-subtype="playlist"] ytd-two-column-browse-results-renderer #primary #contents',
+    '#page-manager [page-subtype="playlist"] #contents #contents #contents',
+];
+
+const findPlaylistList = (): Element | null => {
+    for (const selector of PLAYLIST_LIST_SELECTORS) {
+        const list = document.querySelector(selector);
+        if (list) return list;
+    }
+    return null;
+};
+
 const checkTheme = (): Theme =>
     document.querySelector('[dark]') ? 'dark' : 'light';
 
@@ -84,6 +102,12 @@ const appendUiElement = (els: PlaylistElements): void => {
             selector: '#page-manager [page-subtype="playlist"] .metadata-action-bar',
             position: 'afterend',
         },
+        // Last resort: some layouts expose only the page header, so place the
+        // block directly below it rather than leaving the page without stats.
+        {
+            selector: 'ytd-browse[page-subtype="playlist"] yt-page-header-view-model',
+            position: 'afterend',
+        },
     ];
 
     for (const { selector, position } of candidates) {
@@ -97,24 +121,32 @@ const appendUiElement = (els: PlaylistElements): void => {
     }
 };
 
+// Legacy rows expose the duration through #text. Current rows render it as a
+// thumbnail badge (yt-lockup-view-model -> yt-thumbnail-badge-view-model).
+const getDurationText = (item: Element): string => {
+    const legacy = item.querySelector<HTMLElement>('#text');
+    const legacyText = legacy?.textContent?.trim() ?? '';
+    if (TIME_PATTERN.test(legacyText)) return legacyText;
+
+    const badges = item.querySelectorAll<HTMLElement>('yt-thumbnail-badge-view-model');
+    for (const badge of badges) {
+        const badgeText = badge.textContent?.trim() ?? '';
+        if (TIME_PATTERN.test(badgeText)) return badgeText;
+    }
+
+    return '00:00';
+};
+
 const getVideoTimeList = (): VideoTimeList => {
-    const videosList = document.querySelector(
-        '#page-manager [page-subtype="playlist"] #contents #contents #contents'
-    );
+    const videosList = findPlaylistList();
     const videos = videosList ? videosList.children : [];
-    let count = 0;
     const fullList: string[] = [];
 
     for (const video of videos) {
-        const videoTimeElement = video.querySelector<HTMLElement>('#text');
-        const ts = (!videoTimeElement || videoTimeElement.innerText === '')
-            ? '00:00'
-            : videoTimeElement.innerText.trim();
-        fullList.push(ts);
-        count++;
+        fullList.push(getDurationText(video));
     }
 
-    return { count, fullList };
+    return { count: fullList.length, fullList };
 };
 
 const updateUI = (totalTs: string, count: number): void => {

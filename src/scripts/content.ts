@@ -24,6 +24,22 @@ let playingRetryId2: ReturnType<typeof setTimeout> | undefined;
 let playlistRetryId1: ReturnType<typeof setTimeout> | undefined;
 let playlistRetryId2: ReturnType<typeof setTimeout> | undefined;
 
+// YouTube has shipped several playlist layouts. Keep the current shape first and
+// fall back to the legacy nested #contents chain so older/alternate layouts still
+// initialize the playlist observer.
+const PLAYLIST_LIST_SELECTORS = [
+    'ytd-browse[page-subtype="playlist"] ytd-two-column-browse-results-renderer #primary #contents',
+    '#page-manager [page-subtype="playlist"] #contents #contents #contents',
+];
+
+const findPlaylistList = (): Element | null => {
+    for (const selector of PLAYLIST_LIST_SELECTORS) {
+        const list = document.querySelector(selector);
+        if (list) return list;
+    }
+    return null;
+};
+
 const startObserver = (): void => {
     const pageManagerObserver = new MutationObserver(() => {
         if (!playingObserverStarted) {
@@ -56,9 +72,7 @@ const startObserver = (): void => {
         }
 
         if (!playlistObserverStarted) {
-            const playlistContents = document.querySelector(
-                '#page-manager [page-subtype="playlist"] #contents #contents #contents'
-            );
+            const playlistContents = findPlaylistList();
 
             if (playlistContents) {
                 const playlistObserver = new MutationObserver(() => {
