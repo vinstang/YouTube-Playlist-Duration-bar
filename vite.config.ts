@@ -51,6 +51,13 @@ export default defineConfig({
                     browser_specific_settings: {
                         gecko: {
                             id: 'wai462149@gmail.com',
+                            // Firefox built-in data collection consent. This extension
+                            // reads durations from the DOM and transmits nothing, so
+                            // "none" is the correct declaration. AMO warns when this
+                            // key is missing and will require it for updates.
+                            data_collection_permissions: {
+                                required: ['none'],
+                            },
                         },
                     },
                 };

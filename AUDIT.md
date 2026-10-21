@@ -46,6 +46,7 @@
 | C-05 | `vite.config.ts:11` | `process.env['NODE_ENV']` for sourcemap control is unreliable at config-eval time; idiomatic fix: `export default defineConfig(({ mode }) => ({ build: { sourcemap: mode !== 'production' } }))` |
 | C-06 | `vitest.config.ts:5` + `tests/utils.test.ts:1` | `globals: true` is set but Vitest APIs (`describe`, `it`, `expect`) are still explicitly imported — redundant; either remove the imports or set `globals: false` |
 | C-07 | `vite.config.ts:47` | Firefox `background.scripts` fallback path uses `.js`: `'src/scripts/background.js'`. Only reached if `background.service_worker` is absent, so impact is low — and since the plugin rewrites manifest paths to `.js`, verify which form is correct before changing it to `.ts` |
+| ~~C-08~~ | ~~`vite.config.ts` `transformManifest`~~ | ~~AMO validator warns: `browser_specific_settings.gecko.data_collection_permissions` is missing~~ — **DONE** (added `required: ['none']` to the Firefox transform; the extension transmits no data) |
 | ~~G-02~~ | ~~`.gitignore:8`~~ | ~~`Release/` entry is dead clutter~~ — **DONE** (removed) |
 
 ---
@@ -53,5 +54,9 @@
 ## Notes
 
 - `AGENTS.md` is the single agent-instructions file; `CLAUDE.md` was removed.
+- AMO (Firefox) reported only one warning on `firefox-v0.8.2.zip`: the missing
+  `data_collection_permissions` key (see C-08). All other validator suites were
+  clean — 0 errors, 0 warnings across security, extension, localization, and
+  compatibility tests.
 - GitHub Actions versions (`actions/checkout@v6`, `actions/setup-node@v6`) are confirmed valid — v6 exists for both.
 - `actions/upload-artifact@v7` and `softprops/action-gh-release@v2` are also confirmed correct.
