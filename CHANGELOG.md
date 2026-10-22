@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.3] - 2026-10-23
+
+### Fixed
+- Playlist duration and video counts on Watch Later, owned, empty, and long playlists now use actual rendered video rows instead of wrappers or continuation items
+- Playlist panel text stays readable in light theme after SPA navigation
+
+---
+
 ## [0.8.2] - 2026-10-21
 
 ### Fixed

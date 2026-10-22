@@ -19,7 +19,7 @@ interface VideoTimeList {
 }
 
 const checkTheme = (): Theme =>
-    document.querySelector('[dark]') ? 'dark' : 'light';
+    document.documentElement.hasAttribute('dark') ? 'dark' : 'light';
 
 const createUiElement = (theme: Theme): PlayingElements => {
     const divDurationBlock = document.createElement('div');

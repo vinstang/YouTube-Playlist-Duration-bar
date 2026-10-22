@@ -1,7 +1,5 @@
 import { timeListToSeconds, secondsToTs } from './utils.js';
 
-type Theme = 'dark' | 'light';
-
 interface PlaylistElements {
     divDurationBlock: HTMLDivElement;
     durationTotal: HTMLSpanElement;
@@ -18,27 +16,34 @@ let resizeObserver: ResizeObserver | undefined;
 // Matches MM:SS and HH:MM:SS, so unrelated badge text ("LIVE", "4K") is ignored.
 const TIME_PATTERN = /^\d{1,2}:\d{2}(:\d{2})?$/;
 
-// YouTube has shipped several playlist layouts. Keep the current shape first and
-// fall back to the legacy nested #contents chain.
+// YouTube has shipped several playlist layouts. Editable playlists (Watch Later,
+// owned playlists) wrap their rows in ytd-playlist-video-list-renderer; the newer
+// lockup layout exposes rows directly under the primary #contents. Collect actual
+// row elements instead of trusting a container's direct children.
+const ROW_SELECTOR = 'yt-lockup-view-model, ytd-playlist-video-renderer';
+
 const PLAYLIST_LIST_SELECTORS = [
+    'ytd-playlist-video-list-renderer #contents',
     'ytd-browse[page-subtype="playlist"] ytd-two-column-browse-results-renderer #primary #contents',
     '#page-manager [page-subtype="playlist"] #contents #contents #contents',
 ];
 
-const findPlaylistList = (): Element | null => {
+const getPlaylistRows = (): Element[] => {
     for (const selector of PLAYLIST_LIST_SELECTORS) {
-        const list = document.querySelector(selector);
-        if (list) return list;
+        const container = document.querySelector(selector);
+        if (!container) continue;
+
+        const rows = Array.from(container.querySelectorAll<HTMLElement>(ROW_SELECTOR))
+            .filter((row) => !row.parentElement?.closest(ROW_SELECTOR));
+
+        if (rows.length > 0) return rows;
     }
-    return null;
+    return [];
 };
 
-const checkTheme = (): Theme =>
-    document.querySelector('[dark]') ? 'dark' : 'light';
-
-const createUiElement = (theme: Theme): PlaylistElements => {
+const createUiElement = (): PlaylistElements => {
     const divDurationBlock = document.createElement('div');
-    divDurationBlock.setAttribute(theme, '');
+    divDurationBlock.setAttribute('dark', '');
     divDurationBlock.id = 'duration-block-playlist';
     divDurationBlock.className = 'duration-block';
 
@@ -138,14 +143,7 @@ const getDurationText = (item: Element): string => {
 };
 
 const getVideoTimeList = (): VideoTimeList => {
-    const videosList = findPlaylistList();
-    const videos = videosList ? videosList.children : [];
-    const fullList: string[] = [];
-
-    for (const video of videos) {
-        fullList.push(getDurationText(video));
-    }
-
+    const fullList = getPlaylistRows().map(getDurationText);
     return { count: fullList.length, fullList };
 };
 
@@ -177,22 +175,20 @@ const startResizeWatcher = (): void => {
 };
 
 export const updateDurationPlaylist = (): void => {
-    const theme = checkTheme();
     const { count, fullList } = getVideoTimeList();
     const totalSeconds = timeListToSeconds(fullList);
     const totalTs = secondsToTs(totalSeconds);
 
     if (document.getElementById('duration-block-playlist') === null) {
-        const els = createUiElement(theme);
+        const els = createUiElement();
         appendUiElement(els);
         startResizeWatcher();
     } else {
-        // Keep background/border theme attribute in sync when theme changes.
+        // The playlist header sits on dark artwork in both YouTube themes.
         const block = document.getElementById('duration-block-playlist');
         if (block) {
-            const other: Theme = theme === 'dark' ? 'light' : 'dark';
-            block.removeAttribute(other);
-            block.setAttribute(theme, '');
+            block.removeAttribute('light');
+            block.setAttribute('dark', '');
         }
     }
 

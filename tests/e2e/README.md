@@ -108,27 +108,10 @@ theme. Violations show up as `THEME`, `COLOR`, `COUNT`, or `TOTAL` flags.
 Open failure screenshots with the agent's image-reading tool. A flag in the table
 identifies which screenshot to inspect.
 
-## Known current failures (2026-10-22)
+## Known current issue
 
-The harness was added while the editable-playlist regression from `c05981e` is
-still present. Until the row-discovery fix lands, expect:
-
-- Watch Later / owned playlists: `COUNT 1!=7` (or similar) and wrong `TOTAL`
-- empty playlist: `COUNT 1!=0`
-- long lockup playlist: `COUNT 101!=100`
-- light-theme watch panel after SPA navigation: `THEME`/`COLOR` flags
-- dark-theme runs should pass the watch-panel theme checks, so the expected totals
-  differ between `--theme=light` and `--theme=dark`
-
-Baseline before the fix (2026-10-22, 13 checks per run):
-
-| Engine | `--theme=light` | `--theme=dark` |
-|--------|-----------------|----------------|
-| Chrome | 4/13 | 7/13 |
-| Firefox | 4/13 | 7/13 |
-
-Count/total failures occur in both themes; the `THEME`/`COLOR` failures occur only
-in light mode.
+- The e2e matrix checks light and dark themes after both full navigation and SPA
+  navigation; theme regressions should report `THEME`/`COLOR` flags.
 
 ## Notes
 

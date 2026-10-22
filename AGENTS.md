@@ -131,8 +131,11 @@ Details: [`tests/e2e/README.md`](tests/e2e/README.md). The
 - Watch panel: `#page-manager > ytd-watch-flexy #playlist #items`;
   header anchor: `#page-manager > ytd-watch-flexy #playlist #header-contents`.
 - Standalone playlist list (`findPlaylistList()` tries in order):
-  1. `ytd-browse[page-subtype="playlist"] ytd-two-column-browse-results-renderer #primary #contents`
-  2. `#page-manager [page-subtype="playlist"] #contents #contents #contents`
+  1. `ytd-playlist-video-list-renderer #contents` (editable playlists)
+  2. `ytd-browse[page-subtype="playlist"] ytd-two-column-browse-results-renderer #primary #contents` (lockup layout)
+  3. `#page-manager [page-subtype="playlist"] #contents #contents #contents` (legacy)
+- Count actual top-level `yt-lockup-view-model` / `ytd-playlist-video-renderer` rows,
+  not a list container's `.children`: wrappers and continuation rows are not videos.
 - Standalone header anchors (`appendUiElement()` order): `yt-description-preview-view-model`
   → `ytd-playlist-sidebar-primary-info-renderer #play-buttons` →
   `#page-manager [page-subtype="playlist"] .metadata-action-bar` →
@@ -145,10 +148,11 @@ Details: [`tests/e2e/README.md`](tests/e2e/README.md). The
   and falls back to `00:00` so "LIVE"/"4K" are ignored. Keep both paths.
 - Selectors are duplicated across `content.ts` and the feature modules; update all
   copies together.
-- Theme: `checkTheme()` tests `document.querySelector('[dark]')`; apply theme as an
-  empty attribute (`el.setAttribute(theme, '')`) and remove the opposite one on each
-  update. The standalone playlist header sits on artwork, so its text spans are
-  hard-coded `dark`.
+- Watch-panel theme detection reads `document.documentElement.hasAttribute('dark')`;
+  do not query arbitrary `[dark]` descendants, which can include the player or
+  extension UI. Apply the theme as an empty attribute and remove the opposite one.
+- The standalone playlist header sits on artwork, so its block and text spans stay
+  hard-coded `dark` in both page themes.
 
 ## Conventions that differ from defaults
 

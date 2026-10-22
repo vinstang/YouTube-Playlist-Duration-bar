@@ -46,8 +46,9 @@ applyTo: "src/scripts/**"
   3. `#page-manager [page-subtype="playlist"] .metadata-action-bar` → `afterend`
   4. `ytd-browse[page-subtype="playlist"] yt-page-header-view-model` → `afterend`
 - Standalone playlist list: `findPlaylistList()` tries, in order:
-  1. `ytd-browse[page-subtype="playlist"] ytd-two-column-browse-results-renderer #primary #contents`
-  2. `#page-manager [page-subtype="playlist"] #contents #contents #contents`
+  1. `ytd-playlist-video-list-renderer #contents` (editable playlists)
+  2. `ytd-browse[page-subtype="playlist"] ytd-two-column-browse-results-renderer #primary #contents` (lockup layout)
+  3. `#page-manager [page-subtype="playlist"] #contents #contents #contents` (legacy)
 
   The nested `#contents #contents #contents` chain no longer exists on current
   playlist pages — do not reintroduce it as the only selector.
@@ -56,6 +57,8 @@ applyTo: "src/scripts/**"
   `ytd-playlist-video-renderer` (or `.metadata-action-bar` layouts) with `#text`.
   `getDurationText()` checks `#text` first, then the badge, and validates against
   `^\d{1,2}:\d{2}(:\d{2})?$` so labels like "LIVE" or "4K" are ignored.
+- Count top-level playlist row elements, not `.children` of a matched container:
+  editable playlists can wrap rows and lockup lists can include continuation items.
 - Watch panel on the watch page: `#page-manager > ytd-watch-flexy #playlist #items`.
 - Video runtime is `#text` (legacy) or the time-formatted thumbnail badge
   (current); missing/unparseable → `00:00`.
@@ -66,13 +69,14 @@ applyTo: "src/scripts/**"
 
 ## Theming
 
-- `checkTheme()` returns `'dark' | 'light'` by testing
-  `document.querySelector('[dark]')`.
+- `checkTheme()` returns `'dark' | 'light'` from
+  `document.documentElement.hasAttribute('dark')`. Do not query arbitrary `[dark]`
+  descendants; the player or injected UI can be dark on a light page.
 - Set the theme as an empty attribute: `el.setAttribute(theme, '')`.
 - On updates, remove the opposite attribute and set the current one for every styled
   element (the code keeps an ID list).
-- The standalone playlist header is always on dark artwork; its text spans are
-  hard-coded to `dark` regardless of page theme.
+- The standalone playlist header is always on dark artwork; its block and text
+  spans are hard-coded to `dark` regardless of page theme.
 - CSS uses `[dark]` / `[light]` attribute selectors; do not switch to CSS custom
   properties without updating all injection code.
 
