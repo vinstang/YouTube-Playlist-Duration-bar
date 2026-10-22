@@ -1,344 +1,189 @@
-# AGENTS.md — YouTube Playlist Duration bar
+# AGENTS.md — YouTube Playlist Duration Bar
 
-Agent guidance for this repository. Always edit this file directly; do not create a
+Agent guidance for this repository. Edit this file directly; do not create a
 `CLAUDE.md` alongside it.
 
----
+Detailed area rules (read on demand):
+- [Build pipeline](.github/instructions/build-pipeline.instructions.md)
+- [YouTube content scripts](.github/instructions/youtube-content-scripts.instructions.md)
 
-## Rules for generative AI
+These are Copilot instruction files; OpenCode does not auto-load them, so read the
+relevant one before changing `vite.config.ts`, the manifest, or content scripts.
 
-1. **Do not** commit, push, or create release tags without human approval. Always ask.
-2. **Never edit `dist/`** — it is generated output. Change `src/` or configs and rebuild.
-3. Preserve the build-pipeline invariants below; they are required for the extension
-   to load and for runtime `import()` to work.
+## Hard rules
 
----
+1. **Never commit, push, or create release tags without human approval.** Always ask.
+2. **Never edit `dist/`** — generated output. Change `src/` or configs and rebuild.
+3. Preserve the build-pipeline invariants below; breaking them produces an
+   extension that loads but whose runtime `import()` fails.
 
-## Project Overview
+## What this is
 
-A Chrome/Firefox Manifest V3 extension that injects a progress bar and duration stats
-into YouTube playlist pages. The codebase is fully TypeScript, bundled with Vite, and
-tested with Vitest. Latest changelog entry: **v0.8.1**.
+A Chrome/Firefox Manifest V3 extension that injects a duration/progress UI into
+YouTube playlist pages (watch-page playlist panel and standalone playlist pages).
+TypeScript + Vite + Vitest, one shared source manifest.
 
-**Docs:**
-- [`README.md`](README.md) — user-facing features, screenshots, install links
-- [`CHANGELOG.md`](CHANGELOG.md) — release notes; the release workflow extracts from here
-- [`AUDIT.md`](AUDIT.md) — pre-release audit snapshot (2026-03-12); re-verify items before acting
-
-**Entry points:**
-
-| File | Role |
+| Path | Role |
 |------|------|
-| `src/scripts/content.ts` | Content script on every YouTube page; owns MutationObservers, init retries, SPA lifecycle |
-| `src/scripts/background.ts` | Service worker; install/update badge and popup state |
-| `src/scripts/duration-playing.ts` | ESM module; "now playing" playlist panel UI and stats |
-| `src/scripts/duration-playlist.ts` | ESM module; standalone playlist page UI and stats |
-| `src/scripts/utils.ts` | Pure time helpers: `timeListToSeconds`, `secondsToTs`, `calculateTotalTime` |
+| `src/scripts/content.ts` | Only top-level content script; MutationObservers, init retries, SPA lifecycle |
+| `src/scripts/duration-playing.ts` | ESM module; watch-page playlist panel UI |
+| `src/scripts/duration-playlist.ts` | ESM module; standalone playlist page UI |
+| `src/scripts/utils.ts` | Pure time math: `timeListToSeconds`, `secondsToTs`, `calculateTotalTime` |
+| `src/scripts/background.ts` | Service worker; install/update badge + popup state |
 | `src/scripts/popup.ts` + `src/html/popup.html` | Toolbar popup |
 
----
+`tests/utils.test.ts` covers pure time math (25 tests, Node environment).
+`tests/e2e/` is a local-only Playwright/Selenium browser harness; it is not run by
+Vitest or CI.
 
-## Repository Structure
+## Commands
 
-```
-src/scripts/           TypeScript entry points and ESM feature modules
-src/css/               common.css + one stylesheet per feature
-src/html/              popup.html
-tests/                 Vitest tests (tests/utils.test.ts — 25 tests)
-icons/                 Shipped icons + GIMP .xcf originals + icon-1024 store asset
-screenshot/raw/        Original captures, untouched
-screenshot/output/     Store-ready copies (1280x800, alpha flattened)
-manifest.json          Source manifest; paths point at src/*.ts and are rewritten at build
-vite.config.ts         Build pipeline: manifest transform + ESM static copy
-dist/                  Generated output — gitignored, loaded as unpacked extension
-.github/workflows/     ci.yml, build.yml, release.yml
-.github/instructions/  Area-specific agent rules (build pipeline, content scripts)
-```
-
----
-
-## Build / Lint / Test Commands
-
-> **Node:** CI uses Node 24. If `node`/`npm` are missing in a non-interactive shell,
-> load nvm first:
-> `export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh" &&`
+CI uses Node 24. If `node`/`npm` are missing in a non-interactive shell:
+`export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh"`.
 
 | Command | Purpose |
 |---------|---------|
-| `npm run dev` | Build in watch mode |
-| `npm run build` | Production build (defaults to Chrome) |
-| `npm run build:chrome` | Chrome production build |
-| `npm run build:firefox` | Firefox production build |
-| `npm run lint` | ESLint over `src/` |
-| `npm run lint:fix` | Auto-fix ESLint violations |
-| `npm run test` | Run all tests once |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run test -- tests/utils.test.ts` | Run one test file |
-| `npm run type-check` | `tsc --noEmit` |
+| `npm ci` | Install (CI path) |
+| `npm run dev` | `vite build --watch`; **does not** auto-launch a browser |
+| `npm run build` | Production build, defaults to Chrome |
+| `npm run build:chrome` / `build:firefox` | Explicit target |
+| `npm run lint` | ESLint over `src/`, `tests/e2e/` (configs are ignored) |
+| `npm run type-check` | `tsc --noEmit` over `src/`, `tests/`, configs |
+| `npm run test` | All tests once |
+| `npm run test -- tests/utils.test.ts` | One test file |
+| `npm run e2e:chrome` / `e2e:firefox` | Local browser audit; builds the target first |
+| `npm run e2e:login:chrome` / `e2e:login:firefox` | One-time YouTube login for the harness |
+| `npm run lint:fix` / `npm run test:watch` | Auto-fix / watch |
 
-**Verify before finishing any change:**
+Verify before finishing: `npm run lint && npm run type-check && npm run test`.
+Add `npm run build:chrome` (and `build:firefox` if you touched manifest
+transforms), then inspect `dist/manifest.json`.
 
-```bash
-npm run lint && npm run type-check && npm run test
-```
+**Load locally:** build → `chrome://extensions` → Developer mode → "Load unpacked"
+→ select `dist/` → reload the extension and refresh open YouTube tabs. Each build
+empties `dist/`, so a Firefox build replaces the Chrome build — rebuild the target
+you want last.
 
-For UI or build changes, also run `npm run build:chrome` (and `npm run build:firefox`
-when touching the manifest transform) and confirm `dist/manifest.json` is correct.
+## Browser verification (Chrome + Firefox)
 
-**Load locally:** `npm run build:chrome` → `chrome://extensions` → enable Developer
-mode → "Load unpacked" → select `dist/`. After rebuilding, reload the extension and
-refresh open YouTube tabs.
+Local only; requires real browsers and a one-time YouTube login. Not part of CI.
 
-> There is no Playwright/e2e suite yet. `@playwright/test` and `playwright` are
-> installed but only `tests/utils.test.ts` exists.
+- Chrome: `npm run e2e:login:chrome`, then `npm run e2e:chrome`.
+- Firefox: `npm run e2e:login:firefox` (normal Firefox; close it after signing in),
+  then `npm run e2e:firefox`.
+- Profiles, the Firefox build, and screenshots live in `.e2e/` (gitignored).
+- Firefox login **must** happen outside Selenium — Google rejects automated sign-in.
+- Test both themes with `--theme=light` and `--theme=dark`; the previous profile
+  theme is restored unless `--keep-theme` is passed.
+- Flags are `COUNT`, `TOTAL`, `THEME`, `COLOR`, `PROGRESS`; open failure screenshots
+  under `.e2e/artifacts/<engine>/`.
 
----
+Details: [`tests/e2e/README.md`](tests/e2e/README.md). The
+`browser-extension-testing` skill wraps the workflow for agents.
 
-## Build Pipeline Invariants
+## Build pipeline invariants
 
-The build is non-standard because `vite-plugin-web-extension` bundles every
-manifest-referenced script as IIFE, which strips `export`. Modules imported at
-runtime via dynamic `import()` must instead be emitted as ESM.
+`vite-plugin-web-extension` bundles every manifest entry as **IIFE**, which strips
+`export`. Runtime-imported modules must be emitted separately as **ESM**.
 
-- `manifest.json` intentionally **omits** `web_accessible_resources`. It is injected
-  by `transformManifest` in `vite.config.ts`. Do not add WAR to the source manifest —
-  the plugin would treat those paths as Rollup inputs and bundle them as IIFE.
-- `utils.ts`, `duration-playing.ts`, and `duration-playlist.ts` are compiled
-  individually to ESM by `viteStaticCopy` → `dist/scripts/*.js`.
-- Source imports use `.js` specifiers (`import { ... } from './utils.js'`) because the
-  esbuild transform does not rewrite import paths.
-- Source manifest paths look like `src/scripts/content.ts`; the plugin rewrites them
-  to `src/scripts/content.js` in `dist/manifest.json`.
-- `manifest.json` and `package.json` both carry version `0.0.0`. `transformManifest`
-  sets the output version from `package.json`, and `release.yml` runs
-  `npm version <tag>` before building. Do not bump `manifest.json` by hand.
-- Firefox (`TARGET=firefox`) replaces `background.service_worker` with
-  `background.scripts` and adds `browser_specific_settings.gecko.id`. There is no
-  separate Firefox manifest.
-- `viteStaticCopy` copies only `icons/icon-{16,32,48,128}.{png,xcf}` into `dist/`.
-  `icons/icon-1024.png` stays in the repo for store-listing uploads and must not be
-  added to the build — it alone is ~4 MB and is not referenced by the manifest.
+- Source `manifest.json` must **not** contain `web_accessible_resources`.
+  `transformManifest` in `vite.config.ts` injects it; if present in the source, the
+  plugin treats those paths as Rollup inputs and bundles them as IIFE.
+- `utils.ts`, `duration-playing.ts`, `duration-playlist.ts` are each compiled to ESM
+  by `viteStaticCopy` (`transformWithEsbuild`, `format: 'esm'`) into
+  `dist/scripts/*.js`.
+- A new runtime module needs **three** registrations: a `viteStaticCopy` target, a
+  `scripts/<name>.js` entry in `transformManifest`'s WAR resources, and a load via
+  `chrome.runtime.getURL('scripts/<name>.js')`. Never add it to manifest entry
+  points.
+- Source imports use `.js` specifiers (`from './utils.js'`); esbuild compiles files
+  individually and does not rewrite import paths.
+- Manifest source paths are `src/scripts/*.ts`; the plugin rewrites them to `.js`.
+  Top-level scripts (`content.ts`, `background.ts`, `popup.ts`) get no ESM exports —
+  start them with `export {}`.
+- `package.json` and `manifest.json` both say version `0.0.0`. The build injects
+  `package.json`'s version; `release.yml` syncs it from the git tag. Never bump
+  `manifest.json` by hand.
+- Firefox (`TARGET=firefox`) rewrites `background.service_worker` to
+  `background.scripts` and adds `browser_specific_settings.gecko`. Keep
+  `data_collection_permissions.required: ['none']` — AMO requires it and the
+  extension transmits nothing.
+- `viteStaticCopy` ships only `icons/icon-{16,32,48,128}.{png,xcf}`.
+  `icons/icon-1024.png` is a ~4 MB store asset; do not add it to the build.
 
-Detailed rules: [`.github/instructions/build-pipeline.instructions.md`](.github/instructions/build-pipeline.instructions.md).
+## Adding code
 
----
+1. Pure calculations → `src/scripts/utils.ts` + a Vitest case in `tests/`.
+2. New runtime ESM module → follow the three-registration rule above.
+3. New top-level content script → add to `manifest.json` `content_scripts[].js`
+   with no ESM exports.
+4. New permission → edit `manifest.json`; optional ones must go in
+   `optional_host_permissions` to be requestable.
+5. UI change → use `[dark]`/`[light]` attribute theming, unique IDs, and verify
+   both playlist views in both themes plus SPA navigation and resize.
 
-## Adding a New Feature
+## YouTube DOM realities
 
-1. **Pure logic** → put it in `src/scripts/utils.ts` (or a new pure module) and add
-   Vitest coverage in `tests/`.
-2. **New ESM runtime module** → create `src/scripts/<name>.ts`, import it with `.js`
-   specifiers, add it to `viteStaticCopy` targets **and** the WAR resources list in
-   `transformManifest`, then load it from `content.ts` via
-   `chrome.runtime.getURL('scripts/<name>.js')`.
-3. **New top-level content script** → add it to `manifest.json`
-   `content_scripts[].js`; do not use ESM exports in it (it will be bundled as IIFE).
-4. **New permission or manifest field** → edit `manifest.json`; both browsers share
-   it unless `transformManifest` says otherwise. Optional permissions must go in
-   `optional_host_permissions` to be requestable (see AUDIT B-02).
-5. **UI change** → use the existing `[dark]`/`[light]` attribute theming and unique
-   IDs; verify on both playlist views in both themes.
-6. **Before completing** → run lint, type-check, tests; build and manually verify SPA
-   navigation, theme switching, and window resize.
+- YouTube is an SPA: use `MutationObserver`, never `load`. `content.ts` watches
+  `#page-manager`, then starts page-specific observers. Initial calls plus 1 s / 3 s
+  retries cover slow layout; retries are cancelled when the observer fires.
+- The current video in the watch panel is marked by `#index` text `▶`.
+- Watch panel: `#page-manager > ytd-watch-flexy #playlist #items`;
+  header anchor: `#page-manager > ytd-watch-flexy #playlist #header-contents`.
+- Standalone playlist list (`findPlaylistList()` tries in order):
+  1. `ytd-browse[page-subtype="playlist"] ytd-two-column-browse-results-renderer #primary #contents`
+  2. `#page-manager [page-subtype="playlist"] #contents #contents #contents`
+- Standalone header anchors (`appendUiElement()` order): `yt-description-preview-view-model`
+  → `ytd-playlist-sidebar-primary-info-renderer #play-buttons` →
+  `#page-manager [page-subtype="playlist"] .metadata-action-bar` →
+  `ytd-browse[page-subtype="playlist"] yt-page-header-view-model` (all `afterend`).
+- YouTube renders hidden duplicate header copies. Use `findRendered()` (first node
+  with a non-zero bounding rect), never bare `querySelector()`, for these anchors.
+- Playlist rows have two shapes: current `yt-lockup-view-model` with the runtime in
+  `yt-thumbnail-badge-view-model`; legacy `ytd-playlist-video-renderer` with `#text`.
+  `getDurationText()` checks `#text`, then the badge, validates `MM:SS`/`HH:MM:SS`,
+  and falls back to `00:00` so "LIVE"/"4K" are ignored. Keep both paths.
+- Selectors are duplicated across `content.ts` and the feature modules; update all
+  copies together.
+- Theme: `checkTheme()` tests `document.querySelector('[dark]')`; apply theme as an
+  empty attribute (`el.setAttribute(theme, '')`) and remove the opposite one on each
+  update. The standalone playlist header sits on artwork, so its text spans are
+  hard-coded `dark`.
 
----
+## Conventions that differ from defaults
 
-## Language: TypeScript
+- 4-space indent, single quotes, `const` arrow functions, no `var`.
+- `any` and `!` non-null assertions are ESLint errors; use `unknown` + narrowing and
+  guard every DOM query.
+- Logs are gated behind `DEBUG = import.meta.env.DEV` (stripped from production
+  builds) and use `START :: ...` / `END :: ...` prefixes.
+- Pure logic belongs in `utils.ts` so it stays unit-testable.
 
-- **All code lives in `src/` as `.ts`** — do not add `.js` files to `src/`
-- `tsconfig.json` uses `strict: true`, `noEmit: true`, `moduleResolution: "bundler"`
-- Prefer explicit return types on exported functions
-- Use `interface` for object shapes; `type` for unions/aliases/utility types
-- Avoid `any` (ESLint errors) — use `unknown` and narrow
-- Use `as` only when the DOM guarantees the type, e.g.
-  `document.getElementById('x') as HTMLDivElement`
-- Top-level scripts with no exports start with `export {}` so TypeScript treats them
-  as modules
-- Runtime-imported modules use `.js` import specifiers (`./utils.js`)
+## Known issues (verified 2026-10-22)
 
----
+`AUDIT.md` is a 2026-03-12 snapshot; re-verify in a browser before acting on it.
 
-## Code Style
-
-### Variables and Functions
-- `const` arrow functions for declarations: `const myFunc = () => { ... }`
-- `let` for mutable values; **never `var`**
-- Destructure multi-value returns: `return { watchedList, remainingList }`
-
-### Formatting
-- **4-space indentation** (no tabs)
-- Single quotes; double quotes only inside HTML attribute strings
-- Opening braces on the same line
-- One blank line between top-level declarations
-
-### Naming
-- **Files:** `kebab-case` — `duration-playing.ts`
-- **Functions/variables:** `camelCase` — `updateDurationPlaying`, `totalSeconds`
-- **Interfaces:** plain `PascalCase` — `VideoTimeResult`, `DurationState`
-- **CSS classes/IDs:** `kebab-case` — `.duration-block`, `#duration-block-playing`
-- **Boolean flags:** verb-prefixed — `playingObserverStarted`, `isWatched`
-- Avoid abbreviations except established ones: `ts` (timestamp), `el` (element)
-
-### Imports
-- Static `import` at the top of modules
-- Group: browser APIs → third-party → internal (blank line between groups)
-- Content scripts load feature modules with dynamic `import()` via
-  `chrome.runtime.getURL()` — preserve this pattern in compiled output
-
----
-
-## Error Handling
-
-DOM code is defensive but not uniform: many queries are guarded, while some assume
-YouTube markup exists. When adding or changing code:
-
-- Guard every DOM query before using it:
-  ```ts
-  const el = document.querySelector<HTMLElement>('#some-selector');
-  if (!el) return;
-  ```
-- Never use `!` non-null assertions (ESLint errors)
-- Prefer early returns over deep nesting
-- Reserve `try/catch` for async/browser-API calls (e.g. `chrome.action.openPopup()`),
-  where graceful degradation is expected
-
----
-
-## DOM and Browser Extension Patterns
-
-- React to YouTube's SPA navigation with `MutationObserver`, never `load` events
-- Disconnect observers when done. Keep long-lived observers only while their target
-  page is active.
-- Use `chrome.runtime.getURL()` for resource paths from content scripts
-- Any module loaded via runtime `import()` must be in `web_accessible_resources` and
-  emitted as ESM (see Build Pipeline Invariants)
-- Theme detection (preserve this):
-  ```ts
-  const checkTheme = (): 'dark' | 'light' =>
-      document.querySelector('[dark]') ? 'dark' : 'light';
-  ```
-- Apply theme as an empty attribute for CSS targeting:
-  ```ts
-  element.setAttribute(theme, '');  // 'dark' or 'light'
-  ```
-- Keep theme attributes in sync on every update; YouTube can change theme mid-session
-- `[dark]` / `[light]` attribute selectors are the theming mechanism. Do not replace
-  them with CSS custom properties without updating all injection code.
-- The playlist page header sits on artwork and stays dark even in light mode: the
-  total/count spans are hard-coded to `dark`.
-- YouTube renders duplicate hidden copies of header elements. For playlist header
-  anchors, use `findRendered()` in `duration-playlist.ts` (first element with a
-  non-zero bounding rect), not bare `querySelector()`.
-- The current video in the playlist panel is marked by `#index` text `▶`.
-- Selectors are shared across files. If YouTube changes one, update both
-  `content.ts` and the feature module that uses it:
-
-  ```text
-  #page-manager > ytd-watch-flexy #playlist #items
-  #page-manager > ytd-watch-flexy #playlist #header-contents
-  ytd-browse[page-subtype="playlist"] ytd-two-column-browse-results-renderer #primary #contents
-  #page-manager [page-subtype="playlist"] #contents #contents #contents
-  yt-description-preview-view-model
-  ytd-playlist-sidebar-primary-info-renderer #play-buttons
-  #page-manager [page-subtype="playlist"] .metadata-action-bar
-  ytd-browse[page-subtype="playlist"] yt-page-header-view-model
-  ```
-
-- Standalone playlist rows changed shape. Current pages render items as
-  `yt-lockup-view-model` with the duration in `yt-thumbnail-badge-view-model`;
-  older layouts use `ytd-playlist-video-renderer` with the duration in `#text`.
-  `findPlaylistList()` and `getDurationText()` handle both — keep the fallbacks.
-- Video runtime comes from `#text` (legacy) or the time-formatted thumbnail badge
-  (current); empty/missing/unparseable → `00:00`
-- Extract pure calculations into `utils.ts` so they can be unit-tested
-
-Detailed rules: [`.github/instructions/youtube-content-scripts.instructions.md`](.github/instructions/youtube-content-scripts.instructions.md).
-
----
-
-## CSS
-
-- Attribute selectors for theming: `[dark] { ... }` / `[light] { ... }`
-- Use `rgba()` colors to stay compatible with YouTube overlays
-- `common.css` holds shared styles; add feature styles to the feature stylesheet
-- `kebab-case` for class names and IDs
-- Avoid CSS custom properties unless adding full theme-system support
-- The progress bar is an absolutely positioned child of `.duration-block`; keep its
-  width driven by `updateUI()` percentage
-
----
-
-## Logging
-
-- `console.log()` uses structured prefixes:
-  - `"START :: <description>"` — observer/process begins
-  - `"END :: <description>"` — observer disconnects
-- Gate logs behind `import.meta.env.DEV`:
-  ```ts
-  if (import.meta.env.DEV) console.log('START :: observer started');
-  ```
-
----
-
-## Git and Commit Conventions
-
-- **Branches:** `main` for releases, `dev` for active development; feature branches
-  off `dev` named `feature/<short-description>` or `fix/<short-description>`
-- **Commit format:** `<TYPE>: <short imperative description>`
-  - Types: `FIX`, `ADD`, `UPDATE`, `REMOVE`, `REFACTOR`, `DOCS`, `CI`, `TEST`
-  - Examples:
-    - `FIX: handle missing playlist element on initial page load`
-    - `ADD: unit tests for secondsToTs utility function`
-    - `CI: add GitHub Actions workflow for lint and test on PR`
-- Keep commits atomic — one logical change per commit
-- Never commit `node_modules/`, `dist/`, `*.zip`, `*.crx`, or `*.xpi`
-
-### Releases
-
-1. Add a `## [x.y.z] - YYYY-MM-DD` section to [`CHANGELOG.md`](CHANGELOG.md) first —
-   the release workflow uses it as the GitHub Release body.
-2. Create and push a tag matching `vX.Y.Z`.
-3. `release.yml` runs lint/type-check/tests, syncs `package.json` from the tag,
-   builds both browsers, zips them, and publishes the release.
-4. **Ask the human before creating or pushing a tag.**
-
----
-
-## Current State and Known Issues
-
-The modernization backlog is complete: TypeScript migration, Vite build, Vitest,
-ESLint, CI, release automation, and a single cross-browser manifest are all in place.
-
-[`AUDIT.md`](AUDIT.md) is the standing issue list, but it is a **2026-03-12 snapshot**.
-Re-verify each item against the current code before starting. Items confirmed still
-present on `main` as of 2026-10-22:
-
-- **Popup permissions are broken/unreachable:** `tabs` permission missing so the
-  "Reload all YouTube tabs" button does nothing (B-01); the grant button is
-  permanently disabled because the origin is always granted (B-02/D-01).
 - **SPA lifecycle:** `playingObserverStarted` / `playlistObserverStarted` in
-  `content.ts` are never reset after navigation, so a later playlist view may not
-  initialize its observer (B-04).
-- **Current-video accounting:** the `▶` item is pushed into `remainingList` (B-05).
+  `content.ts` never reset, and the `#page-manager` observer disconnects once both
+  are true — later playlist views can stop updating (B-04).
+- **Popup grant UI is dead:** `*://www.youtube.com/*` is in `host_permissions`, so
+  `chrome.permissions.contains()` is always true and the button is always disabled
+  (B-02/D-01).
+- **Current-video accounting:** the `▶` row goes into `remainingList` (B-05).
 - **Resize observer leak:** `duration-playlist.ts` observes `document.documentElement`
   and never disconnects (B-08).
-- **Config cleanups:** sourcemap uses unreliable `NODE_ENV` (C-05); Vitest
-  `globals: true` plus explicit imports (C-06); Firefox fallback path uses `.js`
-  (C-07); ESLint still has a legacy `scripts/` block and the lint script includes a
-  non-existent `scripts` path.
+- **Config cruft:** `lint` still passes a nonexistent `scripts` path, `eslint.config.js`
+  keeps a `scripts/**/*.js` block, and Vitest sets `globals: true` while tests import
+  its APIs explicitly (C-06).
 
-Already fixed since the audit: theme is read per update rather than cached at
-module load (B-03); the redundant video counter was removed (B-06); release builds
-inject the version from the git tag (C-02).
+## Git and releases
 
----
-
-## Browser Compatibility
-
-| Concern | Chrome (MV3) | Firefox (MV3) |
-|---------|--------------|---------------|
-| Background | `background.service_worker` | `transformManifest` rewrites to `background.scripts` |
-| Runtime `import()` in content scripts | Supported | Supported |
-| `web_accessible_resources` | Required | Required |
-| `chrome.action.openPopup()` | Chrome 127+ | Recent versions; guarded by `try/catch` |
-| `chrome.tabs.query({ url })` | Requires `tabs` permission | Requires `tabs` permission |
+- Branches: `main` (releases), `dev` (active work), `feature/<slug>` / `fix/<slug>`
+  off `dev`.
+- Commits: `<TYPE>: <imperative summary>` with `FIX`, `ADD`, `UPDATE`, `REMOVE`,
+  `REFACTOR`, `DOCS`, `CI`, `TEST`. Keep them atomic.
+- Never commit `node_modules/`, `dist/`, `*.zip`, `*.crx`, or `*.xpi`.
+- Release: add the `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md` first (the
+  workflow extracts it as the release body), then push a `vX.Y.Z` tag. `release.yml`
+  runs lint/type-check/tests, syncs the version, builds and zips both browsers.
+  **Ask the human before tagging.**
