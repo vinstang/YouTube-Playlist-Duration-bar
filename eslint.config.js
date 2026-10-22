@@ -35,6 +35,17 @@ export default tseslint.config(
         },
     },
 
+    // Node-run browser harness scripts (Playwright/Selenium)
+    {
+        files: ['tests/e2e/**/*.mjs'],
+        languageOptions: {
+            globals: {
+                ...globals.node,
+                ...globals.browser,
+            },
+        },
+    },
+
     // Looser rules for legacy JS source (pre-migration)
     // These files will be removed once migration to src/scripts/*.ts is complete.
     {

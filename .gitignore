@@ -17,6 +17,12 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Local browser E2E profiles, builds, screenshots
+.e2e/
+
+# Playwright MCP scratch files
+.playwright-mcp/
+
 # Local env files
 .env
 .env.local
