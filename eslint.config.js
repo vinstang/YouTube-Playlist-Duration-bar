@@ -46,22 +46,4 @@ export default tseslint.config(
         },
     },
 
-    // Looser rules for legacy JS source (pre-migration)
-    // These files will be removed once migration to src/scripts/*.ts is complete.
-    {
-        files: ['scripts/**/*.js'],
-        languageOptions: {
-            globals: {
-                ...globals.browser,
-                chrome: 'readonly',
-            },
-        },
-        rules: {
-            'no-var': 'error',
-            'prefer-const': 'warn',
-            'eqeqeq': 'warn',
-            // Downgraded to warn — known dead code to clean up during TS migration
-            '@typescript-eslint/no-unused-vars': 'warn',
-        },
-    },
 );

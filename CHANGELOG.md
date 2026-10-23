@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.4] - 2026-10-24
+
+### Fixed
+- Playlist observers now follow YouTube SPA navigation and detach from replaced playlist DOM, so switching between playlists keeps the duration UI updated
+- The playlist layout resize observer now disconnects when leaving playlist views and restarts when returning
+
+### Changed
+- Removed the redundant YouTube permission grant control; access is already granted through the required host permission
+
+---
+
 ## [0.8.3] - 2026-10-23
 
 ### Fixed

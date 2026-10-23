@@ -5,11 +5,11 @@ import pkg from './package.json';
 
 const target = process.env['TARGET'] ?? 'chrome';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
     build: {
         outDir: 'dist',
         emptyOutDir: true,
-        sourcemap: process.env['NODE_ENV'] !== 'production',
+        sourcemap: mode !== 'production',
     },
     plugins: [
         webExtension({
@@ -117,4 +117,4 @@ export default defineConfig({
             ],
         }),
     ],
-});
+}));

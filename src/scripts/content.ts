@@ -1,6 +1,8 @@
 export {};
 
 const DEBUG = import.meta.env.DEV;
+let playlistWatcherCleanup: Promise<void> = Promise.resolve();
+let playlistObserverGeneration = 0;
 
 const updateDurationPlaying = async (): Promise<void> => {
     const { updateDurationPlaying: update } = await import(
@@ -10,10 +12,22 @@ const updateDurationPlaying = async (): Promise<void> => {
 };
 
 const updateDurationPlaylist = async (): Promise<void> => {
+    const generation = playlistObserverGeneration;
+    await playlistWatcherCleanup;
+    if (generation !== playlistObserverGeneration || !playlistObservedTarget) return;
+
     const { updateDurationPlaylist: update } = await import(
         chrome.runtime.getURL('scripts/duration-playlist.js')
     );
+    if (generation !== playlistObserverGeneration || !playlistObservedTarget) return;
     update();
+};
+
+const stopDurationPlaylistWatcher = async (): Promise<void> => {
+    const { stopDurationPlaylist: stop } = await import(
+        chrome.runtime.getURL('scripts/duration-playlist.js')
+    );
+    stop();
 };
 
 let pageManagerObserver: MutationObserver | undefined;
@@ -70,6 +84,7 @@ const stopPlayingObserver = (): void => {
 };
 
 const stopPlaylistObserver = (): void => {
+    const wasObserving = Boolean(playlistObserver || playlistObservedTarget);
     if (playlistObserver) {
         playlistObserver.disconnect();
         playlistObserver = undefined;
@@ -77,6 +92,12 @@ const stopPlaylistObserver = (): void => {
     }
     playlistObservedTarget = null;
     clearPlaylistRetries();
+    if (wasObserving) {
+        playlistObserverGeneration += 1;
+        playlistWatcherCleanup = playlistWatcherCleanup
+            .then(stopDurationPlaylistWatcher)
+            .catch(() => {});
+    }
 };
 
 const startPlayingObserver = (target: Element): void => {

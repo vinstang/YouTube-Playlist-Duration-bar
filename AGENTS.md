@@ -170,16 +170,8 @@ Details: [`tests/e2e/README.md`](tests/e2e/README.md). The
 
 See [`AUDIT.md`](AUDIT.md) for current status and verification details. In brief:
 
-- **Popup grant UI is dead:** YouTube is already in required `host_permissions`, so
-  the grant button is always disabled. The reload-tabs query works for YouTube tabs
-  without the separate `tabs` permission.
-- **Resize observer leak:** `duration-playlist.ts` observes the document root and
-  never disconnects.
 - **Product decision:** the current `▶` row is included in remaining time; confirm
   whether “remaining” should mean time to playlist end before changing it.
-- **Config cleanup:** lint still includes a missing `scripts/` path and legacy rule
-  block; Vitest globals duplicate explicit test imports; sourcemap mode uses
-  `NODE_ENV`.
 
 ## Git and releases
 

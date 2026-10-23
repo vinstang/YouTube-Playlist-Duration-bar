@@ -174,6 +174,11 @@ const startResizeWatcher = (): void => {
     resizeObserver.observe(document.documentElement);
 };
 
+export const stopDurationPlaylist = (): void => {
+    resizeObserver?.disconnect();
+    resizeObserver = undefined;
+};
+
 export const updateDurationPlaylist = (): void => {
     const { count, fullList } = getVideoTimeList();
     const totalSeconds = timeListToSeconds(fullList);
@@ -182,7 +187,6 @@ export const updateDurationPlaylist = (): void => {
     if (document.getElementById('duration-block-playlist') === null) {
         const els = createUiElement();
         appendUiElement(els);
-        startResizeWatcher();
     } else {
         // The playlist header sits on dark artwork in both YouTube themes.
         const block = document.getElementById('duration-block-playlist');
@@ -192,5 +196,6 @@ export const updateDurationPlaylist = (): void => {
         }
     }
 
+    startResizeWatcher();
     updateUI(totalTs, count);
 };

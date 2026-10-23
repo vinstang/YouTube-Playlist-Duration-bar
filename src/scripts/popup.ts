@@ -1,9 +1,5 @@
 export {};
 
-const permissionNeeded: chrome.permissions.Permissions = {
-    origins: ['*://www.youtube.com/*'],
-};
-
 document.addEventListener('DOMContentLoaded', async () => {
     // ── Icon & version ──────────────────────────────────────────────────────
     const iconEl = document.getElementById('popup-icon') as HTMLImageElement | null;
@@ -50,18 +46,4 @@ document.addEventListener('DOMContentLoaded', async () => {
             await dismissNotice();
         });
     }
-
-    // ── Permissions ─────────────────────────────────────────────────────────
-    const grantButton = document.getElementById('grantButton') as HTMLButtonElement | null;
-    if (!grantButton) return;
-
-    const granted = await chrome.permissions.contains(permissionNeeded);
-    if (granted) {
-        grantButton.disabled = true;
-        grantButton.textContent = 'Granted';
-    }
-
-    grantButton.addEventListener('click', () => {
-        chrome.permissions.request(permissionNeeded);
-    });
 });
