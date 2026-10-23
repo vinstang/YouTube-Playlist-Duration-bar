@@ -170,6 +170,86 @@ const waitForBlock = async (driver, selector, timeout = 10000) => {
     return false;
 };
 
+const clickVisibleRoute = async (driver, route, listId = null) => driver.executeScript(`
+    const [route, listId] = arguments;
+    const link = Array.from(document.querySelectorAll('a[href]')).find((anchor) => {
+        const url = new URL(anchor.href);
+        const rect = anchor.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return false;
+        if (route === '/feed/playlists') return url.pathname === route;
+        return url.pathname === '/playlist' && url.searchParams.get('list') === listId;
+    });
+    link?.click();
+    return Boolean(link);
+`, route, listId);
+
+const waitForRoute = async (driver, route, listId = null, timeout = 15000) => {
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+        try {
+            const url = new URL(await driver.getCurrentUrl());
+            if (route === '/feed/playlists' && url.pathname === route) return true;
+            if (route === '/playlist' && url.pathname === route && url.searchParams.get('list') === listId) {
+                return true;
+            }
+        } catch {
+            // Navigation in progress.
+        }
+        await sleep(300);
+    }
+    return false;
+};
+
+const clickVideoInPanel = async (driver, rowIndex) => driver.executeScript(`
+    const rowIndex = arguments[0];
+    const row = document.querySelectorAll('#playlist #items > *')[rowIndex];
+    if (!row) return null;
+    const anchors = Array.from(row.querySelectorAll('a[href*="/watch?v="]'));
+    const anchor = anchors.find((candidate) => {
+        const rect = candidate.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+    }) ?? anchors[0];
+    if (!anchor) return null;
+
+    const videoId = new URL(anchor.href).searchParams.get('v');
+    anchor.click();
+    return videoId ? { videoId, rowIndex } : null;
+`, rowIndex);
+
+const waitForCurrentPanelRow = async (driver, target, timeout = 30000) => {
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+        const selected = await driver.executeScript(`
+            const { videoId, rowIndex } = arguments[0];
+            const rows = document.querySelectorAll('#playlist #items > *');
+            const currentIndex = rows[rowIndex]?.querySelector('#index')?.textContent?.trim();
+            return new URL(location.href).searchParams.get('v') === videoId && currentIndex === '▶';
+        `, target).catch(() => false);
+        if (selected) return true;
+        await sleep(300);
+    }
+    return false;
+};
+
+const loadMorePlaylistRows = async (driver, initialDiag) => {
+    let diag = initialDiag;
+    if ((diag.headerCount ?? 0) <= 100 || (diag.rows?.top ?? 0) > 100) return diag;
+
+    let noGrowth = 0;
+    for (let attempt = 0; attempt < 12 && diag.rows.top <= 100 && noGrowth < 5; attempt += 1) {
+        const previousCount = diag.rows.top;
+        await driver.executeScript(SCROLL_TO_BOTTOM).catch(() => {});
+        await sleep(1200);
+        diag = await driver
+            .executeScript(`return ${DIAGNOSE_STANDALONE}`)
+            .catch((error) => ({ ...diag, error: error.message }));
+        noGrowth = diag.rows?.top > previousCount ? 0 : noGrowth + 1;
+    }
+
+    diag.loadMoreFailed = diag.rows?.top <= 100;
+    return diag;
+};
+
 const getRootTheme = (driver) => driver.executeScript(
     'return document.documentElement.hasAttribute("dark") ? "dark" : "light"',
 );
@@ -307,14 +387,10 @@ const audit = async () => {
         }
 
         originalTheme = await getRootTheme(driver);
-        if (args.theme) {
-            await setTheme(driver, args.theme);
-            appliedTheme = await getRootTheme(driver);
-            notes.push(`Requested theme "${args.theme}"; applied "${appliedTheme}".`);
-        } else {
-            appliedTheme = originalTheme;
-            notes.push(`Using the profile's current theme "${appliedTheme}".`);
-        }
+        const requestedTheme = args.theme ?? 'dark';
+        await setTheme(driver, requestedTheme);
+        appliedTheme = await getRootTheme(driver);
+        notes.push(`Requested theme "${requestedTheme}"; applied "${appliedTheme}".`);
 
         const playlists = [];
         if (args.url) {
@@ -358,7 +434,7 @@ const audit = async () => {
             await open(driver, playlist.url);
             await waitForBlock(driver, '#duration-block-playlist', 10000);
 
-            const diag = await driver
+            let diag = await driver
                 .executeScript(`return ${DIAGNOSE_STANDALONE}`)
                 .catch((error) => ({
                     error: error.message,
@@ -367,6 +443,7 @@ const audit = async () => {
                     ui: {},
                     theme: {},
                 }));
+            diag = await loadMorePlaylistRows(driver, diag);
             const result = evaluateStandalone(diag);
             rows.push({
                 label: playlist.label,
@@ -448,7 +525,75 @@ const audit = async () => {
                 );
             }
 
-            await driver.navigate().back().catch(() => {});
+            let videoSwitchCount = 0;
+            for (const rowIndex of [1, 2]) {
+                const panelRows = await driver.executeScript(
+                    'return document.querySelectorAll("#playlist #items > *").length',
+                ).catch(() => 0);
+                if (panelRows <= rowIndex) {
+                    notes.push(`Only ${panelRows} watch-panel row(s) available for "${playlist.label}"; skipped row ${rowIndex + 1}.`);
+                    break;
+                }
+
+                const switchedVideo = await clickVideoInPanel(driver, rowIndex).catch(() => null);
+                if (!switchedVideo) {
+                    const failureDiag = await driver
+                        .executeScript(`return ${DIAGNOSE_PLAYING}`)
+                        .catch(() => ({ injected: false }));
+                    const failureResult = evaluatePlaying(failureDiag);
+                    failureResult.flags.push(`VIDEO_ROW_${rowIndex + 1}_NOT_SELECTABLE`);
+                    rows.push({
+                        label: `Video row ${rowIndex + 1} counter: ${playlist.label}`,
+                        url: await driver.getCurrentUrl().catch(() => watchHref),
+                        flags: failureResult.flags,
+                        diag: failureDiag,
+                        result: failureResult,
+                    });
+                    break;
+                }
+
+                videoSwitchCount += 1;
+                const selected = await waitForCurrentPanelRow(driver, switchedVideo);
+                await sleep(1200);
+                const switchDiag = await driver
+                    .executeScript(`return ${DIAGNOSE_PLAYING}`)
+                    .catch((error) => ({
+                        error: error.message,
+                        injected: false,
+                        theme: {},
+                    }));
+                const switchResult = evaluatePlaying(switchDiag);
+                if (!selected || switchDiag.currentRowIndex !== rowIndex) {
+                    switchResult.flags.push(`VIDEO_ROW_${rowIndex + 1}_NOT_CURRENT`);
+                }
+                rows.push({
+                    label: `Video row ${rowIndex + 1} counter: ${playlist.label}`,
+                    url: await driver.getCurrentUrl().catch(() => watchHref),
+                    flags: switchResult.flags,
+                    diag: switchDiag,
+                    result: switchResult,
+                });
+                if (switchResult.flags.length > 0 || args.screenshots) {
+                    await saveScreenshot(
+                        driver,
+                        uniquePlaylists.length + samples.length + i + rowIndex,
+                        `Video-row-${rowIndex + 1}-${playlist.label}`,
+                    );
+                }
+            }
+
+            if (videoSwitchCount > 0) {
+                for (let attempt = 0; attempt < 5; attempt += 1) {
+                    const isWatchPage = await driver.executeScript(
+                        'return location.pathname === "/watch"',
+                    ).catch(() => false);
+                    if (!isWatchPage) break;
+                    await driver.navigate().back().catch(() => {});
+                    await sleep(1000);
+                }
+            } else {
+                await driver.navigate().back().catch(() => {});
+            }
             await sleep(3000);
             await waitForBlock(driver, '#duration-block-playlist', 10000);
 
@@ -471,13 +616,77 @@ const audit = async () => {
             });
         }
 
+        // Exercise playlist A -> playlists hub -> playlist B without a document
+        // reload. This catches observers left attached to the previous list node.
+        const reservedIds = ['WL', 'LL', ...PUBLIC_PLAYLISTS.map((fixture) => fixture.id)];
+        const spaSwitchCandidates = uniquePlaylists.filter((playlist) => (
+            !reservedIds.includes(playlist.id)
+            && rows.some((row) => row.url === playlist.url && (row.result?.rows ?? 0) > 0)
+        ));
+
+        if (spaSwitchCandidates.length >= 2) {
+            const source = spaSwitchCandidates[0];
+            const destination = spaSwitchCandidates[1];
+            await open(driver, source.url);
+            await waitForBlock(driver, '#duration-block-playlist', 10000);
+            await driver.executeScript("window.__e2eSpaMarker = 'preserve-document'");
+
+            const openedHub = await clickVisibleRoute(driver, '/feed/playlists');
+            if (!openedHub) {
+                notes.push('Could not find the YouTube Playlists navigation link for the cross-playlist SPA check.');
+            } else {
+                await waitForRoute(driver, '/feed/playlists');
+                await sleep(2500);
+                const openedDestination = await clickVisibleRoute(driver, '/playlist', destination.id);
+                if (!openedDestination) {
+                    notes.push(`Could not find the account playlist link for SPA target "${destination.label}".`);
+                } else {
+                    await waitForRoute(driver, '/playlist', destination.id);
+                    await sleep(2000);
+                    await waitForBlock(driver, '#duration-block-playlist', 10000);
+
+                    const spaDiag = await driver
+                        .executeScript(`return ${DIAGNOSE_STANDALONE}`)
+                        .catch((error) => ({
+                            error: error.message,
+                            injected: false,
+                            rows: { visible: 0 },
+                            ui: {},
+                            theme: {},
+                        }));
+                    const spaResult = evaluateStandalone(spaDiag);
+                    const documentPreserved = await driver.executeScript(
+                        "return window.__e2eSpaMarker === 'preserve-document'"
+                    ).catch(() => false);
+                    if (!documentPreserved) spaResult.flags.push('SPA_RELOADED_DOCUMENT');
+
+                    rows.push({
+                        label: `SPA switch: ${source.label} → ${destination.label}`,
+                        url: destination.url,
+                        flags: spaResult.flags,
+                        diag: spaDiag,
+                        result: spaResult,
+                    });
+                    if (spaResult.flags.length > 0 || args.screenshots) {
+                        await saveScreenshot(
+                            driver,
+                            uniquePlaylists.length + samples.length + 1,
+                            'SPA-switch-playlist',
+                        );
+                    }
+                }
+            }
+        } else if (!args.publicOnly) {
+            notes.push('Cross-playlist SPA check skipped: fewer than two non-empty account playlists were discovered.');
+        }
+
         notes.push('Firefox does not expose content-script console logs through Selenium; visual/DOM checks only.');
 
         const payload = {
             engine: ENGINE,
             signedIn,
             theme: appliedTheme,
-            requestedTheme: args.theme,
+            requestedTheme: args.theme ?? 'dark',
             playlists: rows.map((row) => ({
                 label: row.label,
                 url: row.url,
@@ -493,7 +702,7 @@ const audit = async () => {
 
         return hasFailures(rows) ? 1 : 0;
     } finally {
-        if (driver && args.theme && !args.keepTheme && originalTheme && appliedTheme !== originalTheme) {
+        if (driver && !args.keepTheme && originalTheme && appliedTheme !== originalTheme) {
             await setTheme(driver, originalTheme).catch(() => {});
         }
         if (driver) await driver.quit().catch(() => {});

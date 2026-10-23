@@ -25,19 +25,21 @@ against real YouTube pages in Chrome and Firefox.
 2. On a fresh machine/profile, log in once:
    - `npm run e2e:login:chrome`
    - `npm run e2e:login:firefox` (normal Firefox; close it after signing in)
-3. Run both engines, in both themes when the change touches UI/theming:
+3. During development, run Chrome in dark mode (the default):
+   - `npm run e2e:chrome`
+4. When the user asks to prepare a release, run the full browser/theme matrix:
    - `npm run e2e:chrome -- --theme=light`
    - `npm run e2e:chrome -- --theme=dark`
    - `npm run e2e:firefox -- --theme=light`
    - `npm run e2e:firefox -- --theme=dark`
    Each run switches YouTube's real Appearance setting and restores it afterwards.
-4. Read the printed table. Any row with a flag is a failure; the process exit code
+5. Read the printed table. Any row with a flag is a failure; the process exit code
    is non-zero.
-5. On failure, open the referenced screenshot under
+6. On failure, open the referenced screenshot under
    `.e2e/artifacts/<engine>/` with the image-reading tool and compare it with the
    flagged assertion.
-6. Re-run after fixes. Do not report success from one engine alone when the change
-   touches shared content-script logic.
+7. Re-run after fixes. Routine development uses Chrome only; Firefox and light mode
+   are part of release verification unless the user asks for them sooner.
 
 ## What the flags mean
 
@@ -47,6 +49,9 @@ against real YouTube pages in Chrome and Firefox.
 - `THEME x!=y`: block theme attribute does not match the expected layout theme.
 - `COLOR ...`: computed text color does not match the theme's CSS.
 - `PROGRESS x!=y`: progress bar width differs from the displayed percentage.
+- `VIDEO_ROW_*_NOT_CURRENT`: selecting a watch-panel row did not mark it current.
+- `VIDEO_ROW_*_NOT_SELECTABLE`: a rendered watch-panel row had no clickable video link.
+- `LOAD_MORE_NOT_REACHED`: a playlist advertises more than 100 videos but scrolling did not load additional rows.
 - `HEADER ...` is informational: hidden/unavailable videos and lazy loading can
   make YouTube's header count differ from rendered rows.
 
@@ -63,7 +68,8 @@ npm run e2e:chrome -- --theme=dark --keep-theme
 ```
 
 `--theme` uses YouTube's real Appearance menu and verifies the root theme changed.
-Without `--keep-theme`, the previous theme is restored after the run.
+Without `--keep-theme`, the previous theme is restored after the run. Runs default
+to dark mode; both themes are normally reserved for final release verification.
 
 ## Source of truth
 

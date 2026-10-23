@@ -154,6 +154,66 @@ const discoverAccountPlaylists = async (page) => {
     return page.evaluate(COLLECT_PLAYLIST_LINKS).catch(() => []);
 };
 
+const clickVisibleRoute = async (page, route, listId = null) => page.evaluate(({ route, listId }) => {
+    const link = Array.from(document.querySelectorAll('a[href]')).find((anchor) => {
+        const url = new URL(anchor.href);
+        const rect = anchor.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return false;
+        if (route === '/feed/playlists') return url.pathname === route;
+        return url.pathname === '/playlist' && url.searchParams.get('list') === listId;
+    });
+    link?.click();
+    return Boolean(link);
+}, { route, listId });
+
+const clickVideoInPanel = async (page, rowIndex) => page.evaluate((rowIndex) => {
+    const row = document.querySelectorAll('#playlist #items > *')[rowIndex];
+    if (!row) return null;
+    const anchors = Array.from(row.querySelectorAll('a[href*="/watch?v="]'));
+    const anchor = anchors.find((candidate) => {
+        const rect = candidate.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+    }) ?? anchors[0];
+    if (!anchor) return null;
+
+    const videoId = new URL(anchor.href).searchParams.get('v');
+    anchor.click();
+    return videoId ? { videoId, rowIndex } : null;
+}, rowIndex);
+
+const waitForCurrentPanelRow = async (page, target, timeout = 30000) => {
+    try {
+        await page.waitForFunction(({ videoId, rowIndex }) => {
+            const rows = document.querySelectorAll('#playlist #items > *');
+            const currentIndex = rows[rowIndex]?.querySelector('#index')?.textContent?.trim();
+            return new URL(location.href).searchParams.get('v') === videoId && currentIndex === '▶';
+        }, target, { timeout });
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+const loadMorePlaylistRows = async (page, initialDiag) => {
+    let diag = initialDiag;
+    if ((diag.headerCount ?? 0) <= 100 || (diag.rows?.top ?? 0) > 100) return diag;
+
+    let noGrowth = 0;
+    for (let attempt = 0; attempt < 12 && diag.rows.top <= 100 && noGrowth < 5; attempt += 1) {
+        const previousCount = diag.rows.top;
+        await page.evaluate(SCROLL_TO_BOTTOM).catch(() => {});
+        await page.waitForTimeout(1200);
+        diag = await page.evaluate(DIAGNOSE_STANDALONE).catch((error) => ({
+            ...diag,
+            error: error.message,
+        }));
+        noGrowth = diag.rows?.top > previousCount ? 0 : noGrowth + 1;
+    }
+
+    diag.loadMoreFailed = diag.rows?.top <= 100;
+    return diag;
+};
+
 const login = async () => {
     const context = await launch(false);
     const page = context.pages()[0] ?? await context.newPage();
@@ -224,14 +284,10 @@ const audit = async () => {
         }
 
         originalTheme = await getRootTheme(page);
-        if (args.theme) {
-            await setTheme(page, args.theme);
-            appliedTheme = await getRootTheme(page);
-            notes.push(`Requested theme "${args.theme}"; applied "${appliedTheme}".`);
-        } else {
-            appliedTheme = originalTheme;
-            notes.push(`Using the profile's current theme "${appliedTheme}".`);
-        }
+        const requestedTheme = args.theme ?? 'dark';
+        await setTheme(page, requestedTheme);
+        appliedTheme = await getRootTheme(page);
+        notes.push(`Requested theme "${requestedTheme}"; applied "${appliedTheme}".`);
 
         const playlists = [];
         if (args.url) {
@@ -268,13 +324,14 @@ const audit = async () => {
             await open(page, playlist.url);
             await waitForBlock(page, '#duration-block-playlist', 10000);
 
-            const diag = await page.evaluate(DIAGNOSE_STANDALONE).catch((error) => ({
+            let diag = await page.evaluate(DIAGNOSE_STANDALONE).catch((error) => ({
                 error: error.message,
                 injected: false,
                 rows: { visible: 0 },
                 ui: {},
                 theme: {},
             }));
+            diag = await loadMorePlaylistRows(page, diag);
             const result = evaluateStandalone(diag);
             const row = {
                 label: playlist.label,
@@ -351,7 +408,69 @@ const audit = async () => {
                 await capture(page, uniquePlaylists.length + i + 1, `SPA-watch-${playlist.label}`);
             }
 
-            await page.goBack({ waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
+            let videoSwitchCount = 0;
+            for (const rowIndex of [1, 2]) {
+                const panelRows = await page.evaluate(
+                    () => document.querySelectorAll('#playlist #items > *').length,
+                ).catch(() => 0);
+                if (panelRows <= rowIndex) {
+                    notes.push(`Only ${panelRows} watch-panel row(s) available for "${playlist.label}"; skipped row ${rowIndex + 1}.`);
+                    break;
+                }
+
+                const switchedVideo = await clickVideoInPanel(page, rowIndex).catch(() => null);
+                if (!switchedVideo) {
+                    const failureDiag = await page.evaluate(DIAGNOSE_PLAYING).catch(() => ({ injected: false }));
+                    const failureResult = evaluatePlaying(failureDiag);
+                    failureResult.flags.push(`VIDEO_ROW_${rowIndex + 1}_NOT_SELECTABLE`);
+                    rows.push({
+                        label: `Video row ${rowIndex + 1} counter: ${playlist.label}`,
+                        url: page.url(),
+                        flags: failureResult.flags,
+                        diag: failureDiag,
+                        result: failureResult,
+                    });
+                    break;
+                }
+
+                videoSwitchCount += 1;
+                const selected = await waitForCurrentPanelRow(page, switchedVideo);
+                await page.waitForTimeout(1200);
+                const switchDiag = await page.evaluate(DIAGNOSE_PLAYING).catch((error) => ({
+                    error: error.message,
+                    injected: false,
+                    theme: {},
+                }));
+                const switchResult = evaluatePlaying(switchDiag);
+                if (!selected || switchDiag.currentRowIndex !== rowIndex) {
+                    switchResult.flags.push(`VIDEO_ROW_${rowIndex + 1}_NOT_CURRENT`);
+                }
+                rows.push({
+                    label: `Video row ${rowIndex + 1} counter: ${playlist.label}`,
+                    url: page.url(),
+                    flags: switchResult.flags,
+                    diag: switchDiag,
+                    result: switchResult,
+                });
+                if (switchResult.flags.length > 0 || args.screenshots) {
+                    await capture(
+                        page,
+                        uniquePlaylists.length + samples.length + i + rowIndex,
+                        `Video-row-${rowIndex + 1}-${playlist.label}`,
+                    );
+                }
+            }
+
+            if (videoSwitchCount > 0) {
+                for (let attempt = 0; attempt < 5; attempt += 1) {
+                    const isWatchPage = await page.evaluate(() => location.pathname === '/watch').catch(() => false);
+                    if (!isWatchPage) break;
+                    await page.goBack({ waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
+                    await page.waitForTimeout(1000);
+                }
+            } else {
+                await page.goBack({ waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
+            }
             await page.waitForTimeout(3000);
             await waitForBlock(page, '#duration-block-playlist', 10000);
 
@@ -372,6 +491,64 @@ const audit = async () => {
             });
         }
 
+        // Exercise playlist A -> playlists hub -> playlist B without a document
+        // reload. This catches observers left attached to the previous list node.
+        const reservedIds = ['WL', 'LL', ...PUBLIC_PLAYLISTS.map((fixture) => fixture.id)];
+        const spaSwitchCandidates = uniquePlaylists.filter((playlist) => (
+            !reservedIds.includes(playlist.id)
+            && rows.some((row) => row.url === playlist.url && (row.result?.rows ?? 0) > 0)
+        ));
+
+        if (spaSwitchCandidates.length >= 2) {
+            const source = spaSwitchCandidates[0];
+            const destination = spaSwitchCandidates[1];
+            await open(page, source.url);
+            await waitForBlock(page, '#duration-block-playlist', 10000);
+            await page.evaluate(() => { window.__e2eSpaMarker = 'preserve-document'; });
+
+            const openedHub = await clickVisibleRoute(page, '/feed/playlists');
+            if (!openedHub) {
+                notes.push('Could not find the YouTube Playlists navigation link for the cross-playlist SPA check.');
+            } else {
+                await page.waitForURL((url) => url.pathname === '/feed/playlists', { timeout: 15000 }).catch(() => {});
+                await page.waitForTimeout(2500);
+                const openedDestination = await clickVisibleRoute(page, '/playlist', destination.id);
+                if (!openedDestination) {
+                    notes.push(`Could not find the account playlist link for SPA target "${destination.label}".`);
+                } else {
+                    await page.waitForURL((url) => url.searchParams.get('list') === destination.id, { timeout: 15000 }).catch(() => {});
+                    await page.waitForTimeout(2000);
+                    await waitForBlock(page, '#duration-block-playlist', 10000);
+
+                    const spaDiag = await page.evaluate(DIAGNOSE_STANDALONE).catch((error) => ({
+                        error: error.message,
+                        injected: false,
+                        rows: { visible: 0 },
+                        ui: {},
+                        theme: {},
+                    }));
+                    const spaResult = evaluateStandalone(spaDiag);
+                    const documentPreserved = await page.evaluate(
+                        () => window.__e2eSpaMarker === 'preserve-document'
+                    ).catch(() => false);
+                    if (!documentPreserved) spaResult.flags.push('SPA_RELOADED_DOCUMENT');
+
+                    rows.push({
+                        label: `SPA switch: ${source.label} → ${destination.label}`,
+                        url: destination.url,
+                        flags: spaResult.flags,
+                        diag: spaDiag,
+                        result: spaResult,
+                    });
+                    if (spaResult.flags.length > 0 || args.screenshots) {
+                        await capture(page, uniquePlaylists.length + samples.length + 1, 'SPA-switch-playlist');
+                    }
+                }
+            }
+        } else if (signedIn && !args.publicOnly) {
+            notes.push('Cross-playlist SPA check skipped: fewer than two non-empty account playlists were discovered.');
+        }
+
         if (consoleIssues.length > 0) {
             notes.push(`Extension console issues: ${JSON.stringify(consoleIssues)}`);
         }
@@ -380,7 +557,7 @@ const audit = async () => {
             engine: ENGINE,
             signedIn,
             theme: appliedTheme,
-            requestedTheme: args.theme,
+            requestedTheme: args.theme ?? 'dark',
             playlists: rows.map((row) => ({
                 label: row.label,
                 url: row.url,
@@ -396,7 +573,7 @@ const audit = async () => {
 
         return hasFailures(rows) || consoleIssues.length > 0 ? 1 : 0;
     } finally {
-        if (args.theme && !args.keepTheme && originalTheme && appliedTheme !== originalTheme) {
+        if (!args.keepTheme && originalTheme && appliedTheme !== originalTheme) {
             await setTheme(page, originalTheme).catch(() => {});
         }
         await context.close().catch(() => {});

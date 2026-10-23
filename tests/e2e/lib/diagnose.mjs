@@ -11,7 +11,7 @@ export const IS_SIGNED_IN = String.raw`Boolean(
     document.querySelector('ytd-masthead #avatar-btn, ytd-masthead button#avatar-btn, ytd-masthead img#img')
 ) && !document.querySelector('ytd-masthead a[href*="ServiceLogin"]')`;
 
-export const SCROLL_TO_BOTTOM = 'window.scrollTo(0, document.body.scrollHeight)';
+export const SCROLL_TO_BOTTOM = 'window.scrollTo(0, document.documentElement.scrollHeight)';
 
 export const COLLECT_PLAYLIST_LINKS = String.raw`(() => {
     const links = Array.from(document.querySelectorAll('a[href*="/playlist?list="]'));
@@ -68,15 +68,21 @@ export const DIAGNOSE_STANDALONE = String.raw`(() => {
         '#page-manager [page-subtype="playlist"] #contents #contents #contents',
     ];
 
-    const scope = document.querySelector('ytd-browse[page-subtype="playlist"] #primary') ?? document;
-    const allRows = Array.from(scope.querySelectorAll('yt-lockup-view-model, ytd-playlist-video-renderer'));
+    const containers = selectors.map((selector) => document.querySelector(selector));
+    const selectedContainer = containers.find((container) => container
+        && container.querySelectorAll('yt-lockup-view-model, ytd-playlist-video-renderer').length > 0)
+        ?? containers.find(Boolean)
+        ?? document;
+    const allRows = Array.from(selectedContainer.querySelectorAll('yt-lockup-view-model, ytd-playlist-video-renderer'));
     const topRows = allRows.filter((el) => !el.parentElement?.closest('yt-lockup-view-model, ytd-playlist-video-renderer'));
     const visibleRows = topRows.filter((el) => {
         const rect = el.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0;
     });
     const durations = visibleRows.map(durationOf);
-    const expectedSeconds = durations.reduce((sum, ts) => sum + toSeconds(ts), 0);
+    const expectedSeconds = topRows
+        .map(durationOf)
+        .reduce((sum, ts) => sum + toSeconds(ts), 0);
 
     const block = document.getElementById('duration-block-playlist');
     const totalEl = document.getElementById('duration-total-playlist');
@@ -121,6 +127,24 @@ export const DIAGNOSE_STANDALONE = String.raw`(() => {
 })()`;
 
 export const DIAGNOSE_PLAYING = String.raw`(() => {
+    const parseTime = (text) => {
+        const value = String(text ?? '').trim();
+        if (!/^\d{1,2}:\d{2}(:\d{2})?$/.test(value)) return null;
+        const parts = value.split(':').map(Number);
+        return parts.length === 3
+            ? parts[0] * 3600 + parts[1] * 60 + parts[2]
+            : parts[0] * 60 + parts[1];
+    };
+    const formatTime = (seconds) => {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainder = seconds % 60;
+        const pad = (value) => String(value).padStart(2, '0');
+        return hours > 0
+            ? hours + ':' + pad(minutes) + ':' + pad(remainder)
+            : minutes + ':' + pad(remainder);
+    };
+
     const block = document.getElementById('duration-block-playing');
     const totalEl = document.getElementById('duration-total-playing');
     const watchedEl = document.getElementById('duration-watched');
@@ -128,6 +152,21 @@ export const DIAGNOSE_PLAYING = String.raw`(() => {
     const remainingEl = document.getElementById('duration-remaining');
     const barEl = document.getElementById('progress-bar-playing');
     const rect = block?.getBoundingClientRect();
+    const videoRows = Array.from(document.querySelectorAll('#playlist #items > *'));
+    const currentRowIndex = videoRows.findIndex((row) => (
+        row.querySelector('#index')?.textContent?.trim() === '▶'
+    ));
+    const durations = videoRows.map((row) => {
+        const text = row.querySelector('#text')?.textContent?.trim() ?? '';
+        return parseTime(text);
+    });
+    const totalSeconds = durations.reduce((sum, seconds) => sum + (seconds ?? 0), 0);
+    const watchedSeconds = currentRowIndex >= 0
+        ? durations.slice(0, currentRowIndex).reduce((sum, seconds) => sum + (seconds ?? 0), 0)
+        : null;
+    const remainingSeconds = currentRowIndex >= 0
+        ? durations.slice(currentRowIndex).reduce((sum, seconds) => sum + (seconds ?? 0), 0)
+        : null;
 
     return {
         url: location.href,
@@ -139,7 +178,14 @@ export const DIAGNOSE_PLAYING = String.raw`(() => {
         percent: percentEl?.textContent ?? null,
         remaining: remainingEl?.textContent ?? null,
         barWidth: barEl?.style.width ?? null,
-        rows: document.querySelectorAll('#playlist #items > *').length,
+        rows: videoRows.length,
+        currentRowIndex,
+        expectedTotal: formatTime(totalSeconds),
+        expectedWatched: watchedSeconds === null ? null : formatTime(watchedSeconds),
+        expectedRemaining: remainingSeconds === null ? null : formatTime(remainingSeconds),
+        expectedPercent: watchedSeconds === null || totalSeconds === 0
+            ? 0
+            : Math.round(watchedSeconds / totalSeconds * 100),
         totalColor: totalEl ? getComputedStyle(totalEl).color : null,
         watchedColor: watchedEl ? getComputedStyle(watchedEl).color : null,
         theme: {

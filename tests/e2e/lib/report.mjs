@@ -32,9 +32,10 @@ export const evaluateStandalone = (diag) => {
     if (diag.error) flags.push(`ERROR ${diag.error}`);
     if (!diag.injected) flags.push('NOT_INJECTED');
     if (missingBlock(diag)) flags.push('ZERO_SIZE');
+    if (diag.loadMoreFailed) flags.push('LOAD_MORE_NOT_REACHED');
 
     const uiCount = readCount(diag.ui?.count);
-    const rowCount = diag.rows?.visible ?? 0;
+    const rowCount = diag.rows?.top ?? diag.rows?.visible ?? 0;
     if (!Number.isFinite(uiCount)) flags.push('NO_COUNT');
     else if (uiCount !== rowCount) flags.push(`COUNT ${uiCount}!=${rowCount}`);
 
@@ -59,7 +60,7 @@ export const evaluateStandalone = (diag) => {
     return {
         flags,
         headerCount: diag.headerCount ?? null,
-        rows: diag.rows?.visible ?? null,
+        rows: rowCount,
         count: Number.isFinite(uiCount) ? uiCount : null,
         total: uiTotal || null,
         expectedTotal: diag.expectedTotal ?? null,
@@ -73,6 +74,24 @@ export const evaluatePlaying = (diag) => {
     if (!diag.injected) flags.push('NOT_INJECTED');
     if (missingBlock(diag)) flags.push('ZERO_SIZE');
     if (!diag.total) flags.push('NO_TOTAL');
+    if (diag.rows > 0 && diag.currentRowIndex < 0) flags.push('NO_CURRENT_ROW');
+
+    if (diag.expectedTotal && readTotal(diag.total) !== diag.expectedTotal) {
+        flags.push(`TOTAL ${readTotal(diag.total)}!=${diag.expectedTotal}`);
+    }
+    if (diag.expectedWatched !== null && diag.watched !== diag.expectedWatched) {
+        flags.push(`WATCHED ${diag.watched}!=${diag.expectedWatched}`);
+    }
+    const uiRemaining = String(diag.remaining ?? '').replace(/^\s*-\s*/, '').trim();
+    if (diag.expectedRemaining !== null && uiRemaining !== diag.expectedRemaining) {
+        flags.push(`REMAINING ${uiRemaining}!=${diag.expectedRemaining}`);
+    }
+    if (diag.expectedPercent !== undefined) {
+        const uiPercent = readCount(diag.percent);
+        if (uiPercent !== diag.expectedPercent) {
+            flags.push(`PERCENT ${uiPercent}!=${diag.expectedPercent}`);
+        }
+    }
 
     const expectedTheme = diag.theme?.rootDark ? 'dark' : 'light';
     const actualTheme = themeOf(diag.theme);
@@ -93,6 +112,8 @@ export const evaluatePlaying = (diag) => {
         flags,
         rows: diag.rows ?? null,
         total: readTotal(diag.total) || null,
+        watched: diag.watched ?? null,
+        remaining: uiRemaining || null,
         percent: diag.percent ?? null,
         theme: actualTheme,
     };

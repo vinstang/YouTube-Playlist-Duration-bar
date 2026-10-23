@@ -43,12 +43,12 @@ browser, which is why this step cannot be automated.
 
 ```sh
 npm run e2e:chrome
-npm run e2e:firefox
 ```
 
-Each command builds its target first, runs the matrix, and exits non-zero on any
-failure. `e2e:firefox` rebuilds the Chrome `dist/` at the end because both targets
-share `dist/`.
+Development verification uses Chrome in dark theme by default and exits non-zero
+on any failure. Run Firefox and light-theme checks when preparing a release or
+investigating a browser/theme-specific issue. Each command builds its target first;
+`e2e:firefox` rebuilds the Chrome `dist/` at the end because both targets share it.
 
 Useful flags:
 
@@ -58,8 +58,8 @@ npm run e2e:chrome -- --url=PLMOZDTW7ZvXM
 npm run e2e:chrome -- --screenshots     # capture every checked page
 npm run e2e:chrome -- --json
 npm run e2e:chrome -- --no-build        # use current dist/ (must match target)
-npm run e2e:chrome -- --theme=light     # switch YouTube, then restore afterwards
-npm run e2e:chrome -- --theme=dark --keep-theme
+npm run e2e:chrome -- --theme=light     # optional single light-theme run
+npm run e2e:chrome -- --keep-theme      # leave the default dark theme applied
 ```
 
 `--theme` drives YouTube's real Appearance menu (avatar → Appearance → Dark/Light)
@@ -67,7 +67,7 @@ and verifies the page root actually changed. It supports the English and Chinese
 labels used by this account. The previous theme is restored at the end; add
 `--keep-theme` to leave the requested theme applied.
 
-Run all four combinations with:
+When preparing a release, run the full four-way browser/theme matrix:
 
 ```sh
 npm run e2e:chrome  -- --theme=light
@@ -88,7 +88,18 @@ For every standalone playlist:
 
 For Watch Later, the public control, and the first owned playlist, the harness
 also clicks into a video (SPA navigation, no reload), checks the watch-page panel
-and progress bar, then navigates back and re-checks the playlist.
+and progress bar, selects the second and third video rows in turn, verifies each
+current-row marker and watched/remaining/total counters against the panel rows,
+then returns to the playlist and re-checks it. With at least two non-empty owned
+playlists, it also navigates through YouTube's Playlists hub from one owned
+playlist to another and asserts the document was not reloaded and the target
+playlist UI reflects its current rows.
+
+For playlists whose header advertises more than 100 videos while at most 100 rows
+are loaded, the harness scrolls to the bottom and waits for additional rows (up to
+12 scroll attempts, stopping after five attempts with no growth). It then checks
+the count and duration against the newly rendered rows. Failure to load past 100
+is reported as `LOAD_MORE_NOT_REACHED`.
 
 The standalone block is expected to be dark in both themes because it sits on the
 playlist header artwork. The watch panel is expected to follow the page root
@@ -107,11 +118,6 @@ theme. Violations show up as `THEME`, `COLOR`, `COUNT`, or `TOTAL` flags.
 
 Open failure screenshots with the agent's image-reading tool. A flag in the table
 identifies which screenshot to inspect.
-
-## Known current issue
-
-- The e2e matrix checks light and dark themes after both full navigation and SPA
-  navigation; theme regressions should report `THEME`/`COLOR` flags.
 
 ## Notes
 

@@ -64,19 +64,22 @@ transforms), then inspect `dist/manifest.json`.
 empties `dist/`, so a Firefox build replaces the Chrome build — rebuild the target
 you want last.
 
-## Browser verification (Chrome + Firefox)
+## Browser verification
 
 Local only; requires real browsers and a one-time YouTube login. Not part of CI.
 
-- Chrome: `npm run e2e:login:chrome`, then `npm run e2e:chrome`.
-- Firefox: `npm run e2e:login:firefox` (normal Firefox; close it after signing in),
-  then `npm run e2e:firefox`.
+- During development, run Chrome in dark mode: `npm run e2e:chrome`.
+- For release verification, run the full Chrome/Firefox × light/dark matrix below.
+- Firefox login: `npm run e2e:login:firefox` opens normal Firefox; close it after
+  signing in, then run `npm run e2e:firefox`.
 - Profiles, the Firefox build, and screenshots live in `.e2e/` (gitignored).
 - Firefox login **must** happen outside Selenium — Google rejects automated sign-in.
-- Test both themes with `--theme=light` and `--theme=dark`; the previous profile
-  theme is restored unless `--keep-theme` is passed.
-- Flags are `COUNT`, `TOTAL`, `THEME`, `COLOR`, `PROGRESS`; open failure screenshots
-  under `.e2e/artifacts/<engine>/`.
+- E2E runs default to dark mode. Only run light mode / the full matrix when
+  preparing a release or specifically investigating a theme issue.
+- Flags include `COUNT`, `TOTAL`, `THEME`, `COLOR`, `PROGRESS`,
+  `VIDEO_ROW_*_NOT_CURRENT`, `VIDEO_ROW_*_NOT_SELECTABLE`, and
+  `LOAD_MORE_NOT_REACHED`; open failure screenshots under
+  `.e2e/artifacts/<engine>/`.
 
 Details: [`tests/e2e/README.md`](tests/e2e/README.md). The
 `browser-extension-testing` skill wraps the workflow for agents.
@@ -163,22 +166,20 @@ Details: [`tests/e2e/README.md`](tests/e2e/README.md). The
   builds) and use `START :: ...` / `END :: ...` prefixes.
 - Pure logic belongs in `utils.ts` so it stays unit-testable.
 
-## Known issues (verified 2026-10-22)
+## Known issues (reviewed 2026-10-24)
 
-`AUDIT.md` is a 2026-03-12 snapshot; re-verify in a browser before acting on it.
+See [`AUDIT.md`](AUDIT.md) for current status and verification details. In brief:
 
-- **SPA lifecycle:** `playingObserverStarted` / `playlistObserverStarted` in
-  `content.ts` never reset, and the `#page-manager` observer disconnects once both
-  are true — later playlist views can stop updating (B-04).
-- **Popup grant UI is dead:** `*://www.youtube.com/*` is in `host_permissions`, so
-  `chrome.permissions.contains()` is always true and the button is always disabled
-  (B-02/D-01).
-- **Current-video accounting:** the `▶` row goes into `remainingList` (B-05).
-- **Resize observer leak:** `duration-playlist.ts` observes `document.documentElement`
-  and never disconnects (B-08).
-- **Config cruft:** `lint` still passes a nonexistent `scripts` path, `eslint.config.js`
-  keeps a `scripts/**/*.js` block, and Vitest sets `globals: true` while tests import
-  its APIs explicitly (C-06).
+- **Popup grant UI is dead:** YouTube is already in required `host_permissions`, so
+  the grant button is always disabled. The reload-tabs query works for YouTube tabs
+  without the separate `tabs` permission.
+- **Resize observer leak:** `duration-playlist.ts` observes the document root and
+  never disconnects.
+- **Product decision:** the current `▶` row is included in remaining time; confirm
+  whether “remaining” should mean time to playlist end before changing it.
+- **Config cleanup:** lint still includes a missing `scripts/` path and legacy rule
+  block; Vitest globals duplicate explicit test imports; sourcemap mode uses
+  `NODE_ENV`.
 
 ## Git and releases
 

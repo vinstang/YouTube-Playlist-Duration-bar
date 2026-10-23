@@ -27,9 +27,10 @@ applyTo: "src/scripts/**"
   page-specific observers.
 - Initial calls plus `setTimeout` retries (1000 ms / 3000 ms) cover slow layout.
   Cancel pending retries when the observer fires.
-- `playingObserverStarted` / `playlistObserverStarted` currently never reset on SPA
-  navigation (`AUDIT.md` B-04). If you touch lifecycle code, reset state on navigation
-  and disconnect observers for the page that is no longer active.
+- `content.ts` reconciles page-specific observers against the current watch/playlist
+  DOM targets. If a target is replaced or removed, disconnect its observer and
+  cancel its retries before attaching to a new target. Keep this behavior covered
+  for playlist → watch → another playlist SPA navigation.
 - `duration-playlist.ts` keeps a module-level `resizeObserver` for layout switches
   (side panel ↔ top header) and never disconnects it (B-08). Add cleanup if you
   modify it.
