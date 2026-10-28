@@ -89,11 +89,16 @@ For every standalone playlist:
 For Watch Later, the public control, and the first owned playlist, the harness
 also clicks into a video (SPA navigation, no reload), checks the watch-page panel
 and progress bar, selects the second and third video rows in turn, verifies each
-current-row marker and watched/remaining/total counters against the panel rows,
+current-row marker and watched/remaining/total counters against the panel rows
+and live video playhead (allowing a one-second refresh interval),
 then returns to the playlist and re-checks it. With at least two non-empty owned
 playlists, it also navigates through YouTube's Playlists hub from one owned
 playlist to another and asserts the document was not reloaded and the target
 playlist UI reflects its current rows.
+
+Firefox watch-page checks explicitly start muted playback and require the video
+playhead to advance, so their progress-counter assertions do not pass on a paused
+video.
 
 For playlists whose header advertises more than 100 videos while at most 100 rows
 are loaded, the harness scrolls to the bottom and waits for additional rows (up to

@@ -63,8 +63,10 @@ applyTo: "src/scripts/**"
 - Watch panel on the watch page: `#page-manager > ytd-watch-flexy #playlist #items`.
 - Video runtime is `#text` (legacy) or the time-formatted thumbnail badge
   (current); missing/unparseable → `00:00`.
-- The current video is marked by `#index` text `▶`. The current implementation puts
-  it in `remainingList` (`AUDIT.md` B-05); preserve or fix deliberately.
+- The current video is marked by `#index` text `▶`. Split its displayed runtime at
+  `video.currentTime`: elapsed playhead time belongs in watched and the rest in
+  remaining. Refresh about once per second and on seek, pause, end, or video switch.
+  Playback-speed (`ratechange`) support remains deferred in Part 2 of `AUDIT.md`.
 - Inject the UI once: check `document.getElementById('duration-block-*')` first.
 - Keep selectors in sync between `content.ts` and the feature module that uses them.
 

@@ -1,15 +1,24 @@
 # Code Audit — Current Open Items
 
-> Reviewed 2026-10-24 against `v0.8.3` plus the `v0.8.4` release candidate.
+> Reviewed 2026-10-29 against the `v1.0.0` release candidate.
 > Browser checks: Chrome and Firefox, light and dark themes; 20/20 e2e checks passed in each matrix run.
 
 ## Open runtime items
 
-No confirmed runtime bugs are currently tracked. The following product behavior
-and expected playlist-data differences are intentionally left unchanged:
-## Product behavior to confirm
+No confirmed runtime bugs are currently tracked.
 
-- `duration-playing.ts` puts the current `▶` video in `remainingList` with its full runtime. This can be intentional if “remaining” means time until the playlist ends; decide product semantics before changing it.
+## Playback-time behavior
+
+- **Implemented:** the current `▶` video is split at `video.currentTime`; elapsed time counts as watched and the unplayed portion remains remaining. Counters refresh once per second and on seek, pause, end, and video/observer changes. Seeking forward counts skipped time as watched; seeking backward reduces watched time. Tracking only ranges actually played is out of scope. Unit tests and the four-way browser/theme matrix pass (20/20 each); Firefox watch checks explicitly start muted playback and verify the playhead advances.
+
+### Deferred Part 2 — Playback-speed changes
+
+Ensure counters follow `video.playbackRate`: faster playback advances watched time
+faster in wall-clock time; slower playback advances it more slowly. Handle
+`ratechange` promptly and verify at normal, faster, and slower speeds.
+
+## Data caveat
+
 - YouTube may hide unavailable videos or lazily load long playlists. The extension counts rendered rows, so its count can differ from YouTube's header count.
 
 ## Verified resolved
@@ -18,7 +27,6 @@ and expected playlist-data differences are intentionally left unchanged:
 - **B-02 / D-01:** YouTube is a required host permission, so no grant prompt is needed; the unreachable popup control has been removed.
 - **B-03:** watch-panel theme is read per update from `document.documentElement.hasAttribute('dark')`.
 - **B-04:** `content.ts` now reconciles page-specific observers against current DOM targets and disconnects observers/retries for replaced or removed targets. Verified direct navigation between owned playlists through YouTube's SPA hub without reloading, plus switching to the second and third watch-panel rows, in Chrome and Firefox, light and dark themes.
-- **B-05:** retained as a product decision above; not asserted to be a defect.
 - **B-06:** video count derives from actual row list length.
 - **B-08:** the playlist resize observer disconnects when the playlist observer stops or changes target, and restarts when the playlist view becomes active.
 - **D-01:** removed the dead popup permission grant control; the required YouTube host permission already grants access.

@@ -166,12 +166,11 @@ Details: [`tests/e2e/README.md`](tests/e2e/README.md). The
   builds) and use `START :: ...` / `END :: ...` prefixes.
 - Pure logic belongs in `utils.ts` so it stays unit-testable.
 
-## Known issues (reviewed 2026-10-24)
+## Known issues (reviewed 2026-10-29)
 
 See [`AUDIT.md`](AUDIT.md) for current status and verification details. In brief:
 
-- **Product decision:** the current `▶` row is included in remaining time; confirm
-  whether “remaining” should mean time to playlist end before changing it.
+- Playback-speed-aware counters remain deferred; see Part 2 in `AUDIT.md`.
 
 ## Git and releases
 

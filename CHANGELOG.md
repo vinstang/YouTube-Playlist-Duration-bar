@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0] - 2026-10-29
+
+### Changed
+- Watch-page playlist progress now splits the current video at its playhead position, updating watched and remaining time during playback and after seeking, pausing, ending, or switching videos
+
+---
+
 ## [0.8.4] - 2026-10-24
 
 ### Fixed
