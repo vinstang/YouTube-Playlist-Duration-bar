@@ -3,12 +3,26 @@ export {};
 const DEBUG = import.meta.env.DEV;
 let playlistWatcherCleanup: Promise<void> = Promise.resolve();
 let playlistObserverGeneration = 0;
+let playingWatcherCleanup: Promise<void> = Promise.resolve();
+let playingObserverGeneration = 0;
 
 const updateDurationPlaying = async (): Promise<void> => {
+    const generation = playingObserverGeneration;
+    await playingWatcherCleanup;
+    if (generation !== playingObserverGeneration || !playingObservedTarget) return;
+
     const { updateDurationPlaying: update } = await import(
         chrome.runtime.getURL('scripts/duration-playing.js')
     );
+    if (generation !== playingObserverGeneration || !playingObservedTarget) return;
     update();
+};
+
+const stopDurationPlayingWatcher = async (): Promise<void> => {
+    const { stopDurationPlaying: stop } = await import(
+        chrome.runtime.getURL('scripts/duration-playing.js')
+    );
+    stop();
 };
 
 const updateDurationPlaylist = async (): Promise<void> => {
@@ -74,6 +88,7 @@ const clearPlaylistRetries = (): void => {
 };
 
 const stopPlayingObserver = (): void => {
+    const wasObserving = Boolean(playingObserver || playingObservedTarget);
     if (playingObserver) {
         playingObserver.disconnect();
         playingObserver = undefined;
@@ -81,6 +96,12 @@ const stopPlayingObserver = (): void => {
     }
     playingObservedTarget = null;
     clearPlayingRetries();
+    if (wasObserving) {
+        playingObserverGeneration += 1;
+        playingWatcherCleanup = playingWatcherCleanup
+            .then(stopDurationPlayingWatcher)
+            .catch(() => {});
+    }
 };
 
 const stopPlaylistObserver = (): void => {
@@ -120,7 +141,7 @@ const startPlayingObserver = (target: Element): void => {
         timeoutId = setTimeout(updateDurationPlaying, 2000);
     });
 
-    observer.observe(target, { childList: true, subtree: true });
+    observer.observe(target, { childList: true, subtree: true, characterData: true });
     playingObserver = observer;
     if (DEBUG) console.log('START :: Playing list observer started');
 

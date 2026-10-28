@@ -36,6 +36,23 @@ export const secondsToTs = (seconds: number): string => {
     return totalHours + ':' + zeroPad(totalMinutes) + ':' + zeroPad(totalSecondsLeft);
 };
 
+export interface PlayheadTimeSplit {
+    watched: string;
+    remaining: string;
+}
+
+export const splitDurationAtPlayhead = (duration: string, currentTime: number): PlayheadTimeSplit => {
+    const durationSeconds = timeListToSeconds([duration]);
+    const watchedSeconds = Number.isFinite(currentTime)
+        ? Math.min(durationSeconds, Math.max(0, Math.floor(currentTime)))
+        : 0;
+
+    return {
+        watched: secondsToTs(watchedSeconds),
+        remaining: secondsToTs(durationSeconds - watchedSeconds),
+    };
+};
+
 export interface TotalTimeResult {
     watchedTs: string;
     remainingTs: string;

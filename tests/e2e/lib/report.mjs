@@ -75,20 +75,36 @@ export const evaluatePlaying = (diag) => {
     if (missingBlock(diag)) flags.push('ZERO_SIZE');
     if (!diag.total) flags.push('NO_TOTAL');
     if (diag.rows > 0 && diag.currentRowIndex < 0) flags.push('NO_CURRENT_ROW');
+    if (diag.playbackAttempted && !diag.playbackAdvanced) {
+        flags.push(`VIDEO_NOT_PLAYING${diag.playbackError ? ` ${diag.playbackError}` : ''}`);
+    }
 
     if (diag.expectedTotal && readTotal(diag.total) !== diag.expectedTotal) {
         flags.push(`TOTAL ${readTotal(diag.total)}!=${diag.expectedTotal}`);
     }
-    if (diag.expectedWatched !== null && diag.watched !== diag.expectedWatched) {
+    const parseTime = (value) => {
+        const parts = String(value ?? '').split(':').map(Number);
+        if (parts.some((part) => !Number.isFinite(part))) return null;
+        return parts.length === 3
+            ? parts[0] * 3600 + parts[1] * 60 + parts[2]
+            : parts.length === 2 ? parts[0] * 60 + parts[1] : null;
+    };
+    const watchedSeconds = parseTime(diag.watched);
+    const expectedWatchedSeconds = parseTime(diag.expectedWatched);
+    if (expectedWatchedSeconds !== null
+        && (watchedSeconds === null || Math.abs(watchedSeconds - expectedWatchedSeconds) > 1)) {
         flags.push(`WATCHED ${diag.watched}!=${diag.expectedWatched}`);
     }
     const uiRemaining = String(diag.remaining ?? '').replace(/^\s*-\s*/, '').trim();
-    if (diag.expectedRemaining !== null && uiRemaining !== diag.expectedRemaining) {
+    const remainingSeconds = parseTime(uiRemaining);
+    const expectedRemainingSeconds = parseTime(diag.expectedRemaining);
+    if (expectedRemainingSeconds !== null
+        && (remainingSeconds === null || Math.abs(remainingSeconds - expectedRemainingSeconds) > 1)) {
         flags.push(`REMAINING ${uiRemaining}!=${diag.expectedRemaining}`);
     }
     if (diag.expectedPercent !== undefined) {
         const uiPercent = readCount(diag.percent);
-        if (uiPercent !== diag.expectedPercent) {
+        if (uiPercent === null || Math.abs(uiPercent - diag.expectedPercent) > 1) {
             flags.push(`PERCENT ${uiPercent}!=${diag.expectedPercent}`);
         }
     }

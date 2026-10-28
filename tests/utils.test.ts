@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { timeListToSeconds, secondsToTs, calculateTotalTime } from '../src/scripts/utils.js';
+import { timeListToSeconds, secondsToTs, calculateTotalTime, splitDurationAtPlayhead } from '../src/scripts/utils.js';
 
 // ─── timeListToSeconds ────────────────────────────────────────────────────────
 
@@ -78,6 +78,45 @@ describe('secondsToTs', () => {
 
     it('returns "2:03:04" for 7384 seconds', () => {
         expect(secondsToTs(7384)).toBe('2:03:04');
+    });
+});
+
+// ─── splitDurationAtPlayhead ──────────────────────────────────────────────────
+
+describe('splitDurationAtPlayhead', () => {
+    it('splits a duration at the current playhead position', () => {
+        expect(splitDurationAtPlayhead('10:00', 125)).toEqual({
+            watched: '2:05',
+            remaining: '7:55',
+        });
+    });
+
+    it('displays whole seconds for fractional playhead positions', () => {
+        expect(splitDurationAtPlayhead('1:00', 12.9)).toEqual({
+            watched: '0:12',
+            remaining: '0:48',
+        });
+    });
+
+    it('clamps negative playhead positions to zero', () => {
+        expect(splitDurationAtPlayhead('1:00', -5)).toEqual({
+            watched: '0:00',
+            remaining: '1:00',
+        });
+    });
+
+    it('clamps playhead positions beyond the duration', () => {
+        expect(splitDurationAtPlayhead('1:00', 90)).toEqual({
+            watched: '1:00',
+            remaining: '0:00',
+        });
+    });
+
+    it('treats non-finite playhead positions as zero', () => {
+        expect(splitDurationAtPlayhead('1:00', Number.NaN)).toEqual({
+            watched: '0:00',
+            remaining: '1:00',
+        });
     });
 });
 

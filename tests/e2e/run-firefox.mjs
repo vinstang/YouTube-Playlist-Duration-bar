@@ -216,6 +216,32 @@ const clickVideoInPanel = async (driver, rowIndex) => driver.executeScript(`
     return videoId ? { videoId, rowIndex } : null;
 `, rowIndex);
 
+const ensureVideoPlaybackAdvances = async (driver, timeout = 10000) => driver.executeAsyncScript(`
+    const done = arguments[arguments.length - 1];
+    const video = document.querySelector('#page-manager > ytd-watch-flexy video.html5-main-video');
+    if (!video) {
+        done({ advanced: false, error: 'Watch-page video element not found' });
+        return;
+    }
+
+    video.muted = true;
+    const startTime = video.currentTime;
+    const startedAt = Date.now();
+    const checkProgress = () => {
+        if (video.currentTime >= startTime + 1) {
+            done({ advanced: true, startTime, currentTime: video.currentTime });
+        } else if (Date.now() - startedAt >= arguments[0]) {
+            done({ advanced: false, startTime, currentTime: video.currentTime, paused: video.paused });
+        } else {
+            setTimeout(checkProgress, 250);
+        }
+    };
+
+    video.play().then(checkProgress).catch((error) => {
+        done({ advanced: false, startTime, currentTime: video.currentTime, error: error.message });
+    });
+`, timeout);
+
 const waitForCurrentPanelRow = async (driver, target, timeout = 30000) => {
     const deadline = Date.now() + timeout;
     while (Date.now() < deadline) {
@@ -501,6 +527,7 @@ const audit = async () => {
             await sleep(6000);
             await waitForBlock(driver, '#duration-block-playing', 15000);
 
+            const playbackResult = await ensureVideoPlaybackAdvances(driver);
             const playingDiag = await driver
                 .executeScript(`return ${DIAGNOSE_PLAYING}`)
                 .catch((error) => ({
@@ -508,6 +535,9 @@ const audit = async () => {
                     injected: false,
                     theme: {},
                 }));
+            playingDiag.playbackAttempted = true;
+            playingDiag.playbackAdvanced = playbackResult.advanced;
+            playingDiag.playbackError = playbackResult.error ?? null;
             const playingResult = evaluatePlaying(playingDiag);
             rows.push({
                 label: `SPA watch: ${playlist.label}`,
@@ -555,6 +585,7 @@ const audit = async () => {
                 videoSwitchCount += 1;
                 const selected = await waitForCurrentPanelRow(driver, switchedVideo);
                 await sleep(1200);
+                const playbackResult = await ensureVideoPlaybackAdvances(driver);
                 const switchDiag = await driver
                     .executeScript(`return ${DIAGNOSE_PLAYING}`)
                     .catch((error) => ({
@@ -562,6 +593,9 @@ const audit = async () => {
                         injected: false,
                         theme: {},
                     }));
+                switchDiag.playbackAttempted = true;
+                switchDiag.playbackAdvanced = playbackResult.advanced;
+                switchDiag.playbackError = playbackResult.error ?? null;
                 const switchResult = evaluatePlaying(switchDiag);
                 if (!selected || switchDiag.currentRowIndex !== rowIndex) {
                     switchResult.flags.push(`VIDEO_ROW_${rowIndex + 1}_NOT_CURRENT`);

@@ -1,4 +1,4 @@
-import { calculateTotalTime } from './utils.js';
+import { calculateTotalTime, splitDurationAtPlayhead } from './utils.js';
 
 type Theme = 'dark' | 'light';
 
@@ -17,6 +17,40 @@ interface VideoTimeList {
     watchedList: string[];
     remainingList: string[];
 }
+
+let activeVideo: HTMLVideoElement | null = null;
+let playbackInterval: ReturnType<typeof setInterval> | undefined;
+
+const handlePlaybackChange = (): void => updateDurationPlaying();
+
+const bindPlaybackUpdates = (): void => {
+    const video = document.querySelector<HTMLVideoElement>(
+        '#page-manager > ytd-watch-flexy video.html5-main-video'
+    );
+
+    if (video !== activeVideo) {
+        activeVideo?.removeEventListener('seeking', handlePlaybackChange);
+        activeVideo?.removeEventListener('seeked', handlePlaybackChange);
+        activeVideo?.removeEventListener('pause', handlePlaybackChange);
+        activeVideo?.removeEventListener('ended', handlePlaybackChange);
+        activeVideo?.removeEventListener('emptied', handlePlaybackChange);
+        activeVideo?.removeEventListener('loadedmetadata', handlePlaybackChange);
+        activeVideo?.removeEventListener('playing', handlePlaybackChange);
+        activeVideo = video;
+
+        activeVideo?.addEventListener('seeking', handlePlaybackChange);
+        activeVideo?.addEventListener('seeked', handlePlaybackChange);
+        activeVideo?.addEventListener('pause', handlePlaybackChange);
+        activeVideo?.addEventListener('ended', handlePlaybackChange);
+        activeVideo?.addEventListener('emptied', handlePlaybackChange);
+        activeVideo?.addEventListener('loadedmetadata', handlePlaybackChange);
+        activeVideo?.addEventListener('playing', handlePlaybackChange);
+    }
+
+    if (playbackInterval === undefined) {
+        playbackInterval = setInterval(handlePlaybackChange, 1000);
+    }
+};
 
 const checkTheme = (): Theme =>
     document.documentElement.hasAttribute('dark') ? 'dark' : 'light';
@@ -103,6 +137,7 @@ const getVideoTimeList = (): VideoTimeList => {
     let isWatched = true;
     const watchedList: string[] = [];
     const remainingList: string[] = [];
+    const currentTime = activeVideo?.currentTime ?? 0;
 
     for (const video of videos) {
         const indexEl = video.querySelector('#index');
@@ -115,7 +150,11 @@ const getVideoTimeList = (): VideoTimeList => {
             ? '00:00'
             : videoTimeElement.innerText.trim();
 
-        if (isWatched) {
+        if (indexEl?.textContent?.trim() === '▶') {
+            const split = splitDurationAtPlayhead(ts, currentTime);
+            if (split.watched !== '0:00') watchedList.push(split.watched);
+            if (split.remaining !== '0:00') remainingList.push(split.remaining);
+        } else if (isWatched) {
             watchedList.push(ts);
         } else {
             remainingList.push(ts);
@@ -140,6 +179,7 @@ const updateUI = (watchedTs: string, remainingTs: string, totalTs: string, watch
 };
 
 export const updateDurationPlaying = (): void => {
+    bindPlaybackUpdates();
     const theme = checkTheme();
     const { watchedList, remainingList } = getVideoTimeList();
     const { watchedTs, remainingTs, totalTs, watchedPercent } = calculateTotalTime(watchedList, remainingList);
@@ -161,4 +201,20 @@ export const updateDurationPlaying = (): void => {
     }
 
     updateUI(watchedTs, remainingTs, totalTs, watchedPercent);
+};
+
+export const stopDurationPlaying = (): void => {
+    activeVideo?.removeEventListener('seeking', handlePlaybackChange);
+    activeVideo?.removeEventListener('seeked', handlePlaybackChange);
+    activeVideo?.removeEventListener('pause', handlePlaybackChange);
+    activeVideo?.removeEventListener('ended', handlePlaybackChange);
+    activeVideo?.removeEventListener('emptied', handlePlaybackChange);
+    activeVideo?.removeEventListener('loadedmetadata', handlePlaybackChange);
+    activeVideo?.removeEventListener('playing', handlePlaybackChange);
+    activeVideo = null;
+
+    if (playbackInterval !== undefined) {
+        clearInterval(playbackInterval);
+        playbackInterval = undefined;
+    }
 };

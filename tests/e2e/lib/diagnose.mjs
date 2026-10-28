@@ -156,6 +156,8 @@ export const DIAGNOSE_PLAYING = String.raw`(() => {
     const currentRowIndex = videoRows.findIndex((row) => (
         row.querySelector('#index')?.textContent?.trim() === '▶'
     ));
+    const video = document.querySelector('#page-manager > ytd-watch-flexy video.html5-main-video');
+    const currentTime = Number.isFinite(video?.currentTime) ? Math.floor(video.currentTime) : 0;
     const durations = videoRows.map((row) => {
         const text = row.querySelector('#text')?.textContent?.trim() ?? '';
         return parseTime(text);
@@ -163,9 +165,10 @@ export const DIAGNOSE_PLAYING = String.raw`(() => {
     const totalSeconds = durations.reduce((sum, seconds) => sum + (seconds ?? 0), 0);
     const watchedSeconds = currentRowIndex >= 0
         ? durations.slice(0, currentRowIndex).reduce((sum, seconds) => sum + (seconds ?? 0), 0)
+            + Math.min(durations[currentRowIndex] ?? 0, currentTime)
         : null;
     const remainingSeconds = currentRowIndex >= 0
-        ? durations.slice(currentRowIndex).reduce((sum, seconds) => sum + (seconds ?? 0), 0)
+        ? totalSeconds - watchedSeconds
         : null;
 
     return {
@@ -180,6 +183,7 @@ export const DIAGNOSE_PLAYING = String.raw`(() => {
         barWidth: barEl?.style.width ?? null,
         rows: videoRows.length,
         currentRowIndex,
+        currentTime,
         expectedTotal: formatTime(totalSeconds),
         expectedWatched: watchedSeconds === null ? null : formatTime(watchedSeconds),
         expectedRemaining: remainingSeconds === null ? null : formatTime(remainingSeconds),
